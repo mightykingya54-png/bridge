@@ -1,0 +1,23 @@
+{
+  "name": "bridge",
+  "version": "0.1.0",
+  "description": "Bridge — Multi-processor payment sync for Stripe. Push PayPal/Square/Adyen transactions into Stripe Payment Records API",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test:stripe": "node src/test/test-stripe-payment-records.js",
+    "test:paypal": "node src/test/test-paypal-transactions.js",
+    "test:sync": "node src/test/test-sync-workflow.js",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "sync": "curl -s -X POST http://localhost:3001/api/sync | python3 -m json.tool"
+  },
+  "dependencies": {
+    "stripe": "^17.0.0",
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "node-cron": "^3.0.3"
+  }
+}

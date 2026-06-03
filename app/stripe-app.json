@@ -1,0 +1,39 @@
+{
+  "id": "com.bridge.payment-sync",
+  "version": "0.1.0",
+  "name": "Bridge",
+  "icon": "./bridge_icon_32.png",
+  "permissions": [
+    {
+      "permission": "payment_record_write",
+      "purpose": "Sync PayPal (and other processor) transactions into Stripe Payment Records API so all revenue appears in Stripe."
+    },
+    {
+      "permission": "payment_record_read",
+      "purpose": "Read existing payment records to verify sync status and avoid duplicate pushes."
+    },
+    {
+      "permission": "balance_read",
+      "purpose": "Display synced transaction summaries in the Bridge dashboard panel."
+    }
+  ],
+  "ui_extension": {
+    "views": [
+      {
+        "viewport": "stripe.dashboard.main",
+        "component": "App"
+      }
+    ],
+    "content_security_policy": {
+      "connect-src": [
+        "http://localhost:3001",
+        "https://api-m.sandbox.paypal.com",
+        "https://api-m.paypal.com"
+      ],
+      "purpose": "Allow Bridge to connect to its backend server and PayPal API."
+    }
+  },
+  "stripe_api_access_type": "platform",
+  "distribution_type": "private",
+  "sandbox_install_compatible": true
+}
