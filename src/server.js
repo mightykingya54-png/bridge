@@ -187,9 +187,9 @@ process.on('SIGTERM', () => {
 /**
  * Start server.
  */
-const PORT = 3001;
-app.listen(PORT, () => {
-  console.log(`\n🌉 Bridge API server running on http://localhost:${PORT}`);
+const PORT = parseInt(process.env.PORT || '3001', 10);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🌉 Bridge API server running on http://0.0.0.0:${PORT}`);
   console.log(`   Stripe: ${config.stripe.secretKey ? '✅ configured' : '❌ missing'}`);
   console.log(`   PayPal: ${paypalConnected ? '✅ configured' : '❌ missing'}`);
   console.log(`   Database: ${config.databasePath}`);
