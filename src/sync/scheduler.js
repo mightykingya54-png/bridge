@@ -1,31 +1,24 @@
 /**
- * Sync Scheduler — Automatically runs sync on a cron schedule.
+ * Sync Scheduler — Runs sync for ALL configured merchants on a cron schedule.
  *
- * Default: every 24 hours (configurable via SCHEDULE env var).
- * Uses sync state to determine date range (last sync → now).
- *
- * Run as part of the server: import { startScheduler } and call it.
+ * Iterates through all registered merchants that have both Stripe and PayPal
+ * configured, and runs a sync for each one.
  */
 import cron from 'node-cron';
-import { config } from '../config.js';
 import { fetchTransactions } from '../connectors/paypal.js';
 import { pushPaymentRecord } from '../connectors/stripe.js';
 import {
-  getState,
-  updateSyncState,
+  getAllMerchants,
   isAlreadySynced,
   markSynced,
   addSyncError,
 } from './state.js';
 
-// Default: run daily at 6:00 AM
 const DEFAULT_SCHEDULE = '0 6 * * *';
-const SYNC_LOOKBACK_DAYS = 30; // how far back to look on first sync
+const SYNC_LOOKBACK_DAYS = 7;
 
 /**
  * Start the sync scheduler.
- * @param {Object} callbacks - { onSyncStart, onSyncComplete } for logging
- * @returns {{ stop: Function, schedule: string }}
  */
 export function startScheduler(callbacks = {}) {
   const schedule = process.env.SCHEDULE || DEFAULT_SCHEDULE;
@@ -40,17 +33,34 @@ export function startScheduler(callbacks = {}) {
   const task = cron.schedule(schedule, async () => {
     console.log('⏰ Scheduled sync starting...');
     callbacks.onSyncStart?.();
-    try {
-      const result = await runScheduledSync();
-      console.log(
-        `⏰ Sync complete: ${result.pushed} pushed, ${result.skipped} skipped, ${result.errors} errors`
-      );
-      callbacks.onSyncComplete?.(result);
-    } catch (err) {
-      console.error(`❌ Scheduled sync failed: ${err.message}`);
-      addSyncError(`Scheduled sync failed: ${err.message}`);
-      callbacks.onSyncComplete?.({ error: err.message });
+
+    const merchants = getAllMerchants().filter(m => m.stripe_key && m.paypal_client_id && m.paypal_client_secret);
+
+    if (merchants.length === 0) {
+      console.log('⏰ No merchants configured. Skipping scheduled sync.');
+      return;
     }
+
+    let totalPushed = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
+
+    for (const merchant of merchants) {
+      console.log(`   Sync for merchant ${merchant.id} (${merchant.display_name || 'unnamed'})...`);
+      try {
+        const result = await runMerchantSync(merchant);
+        totalPushed += result.pushed;
+        totalSkipped += result.skipped;
+        totalErrors += result.errors;
+      } catch (err) {
+        console.error(`   ❌ Merchant ${merchant.id} sync failed: ${err.message}`);
+        addSyncError(`Scheduled sync failed: ${err.message}`, null, merchant.id);
+        totalErrors++;
+      }
+    }
+
+    console.log(`⏰ Sync complete: ${totalPushed} pushed, ${totalSkipped} skipped, ${totalErrors} errors across ${merchants.length} merchants`);
+    callbacks.onSyncComplete?.({ pushed: totalPushed, skipped: totalSkipped, errors: totalErrors });
   });
 
   return {
@@ -63,91 +73,62 @@ export function startScheduler(callbacks = {}) {
 }
 
 /**
- * Run one sync cycle using DB-based state for dedup and date tracking.
- * Exported so the API endpoint can also use it.
+ * Run one sync for a single merchant.
  */
-export async function runScheduledSync() {
-  const paypalConfigured = config.paypal.clientId && config.paypal.clientSecret;
-  if (!paypalConfigured) {
-    throw new Error('PayPal not configured — set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET');
-  }
-
-  const state = getState();
-
-  // Determine date range
+async function runMerchantSync(merchant) {
   const endDate = new Date();
-  let startDate;
+  const startDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
-  if (state.lastSyncAt) {
-    // Start from last sync (minus 1h overlap to catch edge cases)
-    startDate = new Date(new Date(state.lastSyncAt).getTime() - 60 * 60 * 1000);
-  } else {
-    // First sync: look back SYNC_LOOKBACK_DAYS days
-    startDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-  }
+  const paypalCreds = {
+    clientId: merchant.paypal_client_id,
+    clientSecret: merchant.paypal_client_secret,
+    environment: merchant.paypal_environment,
+  };
 
-  const startStr = startDate.toISOString();
-  const endStr = endDate.toISOString();
-
-  console.log(`   Range: ${startStr} → ${endStr}`);
-
-  // Fetch all pages from PayPal
   let page = 1;
   let totalPages = 1;
   let allTransactions = [];
 
   while (page <= totalPages) {
-    const batch = await fetchTransactions(startStr, endStr, page);
-    allTransactions = allTransactions.concat(batch.transactions);
+    const batch = await fetchTransactions(
+      startDate.toISOString(),
+      endDate.toISOString(),
+      paypalCreds,
+      page
+    );
+    allTransactions = allTransactions.concat(batch.transactions || []);
     totalPages = batch.totalPages || 1;
     page++;
   }
 
-  console.log(`   Found ${allTransactions.length} PayPal transactions`);
-
-  // Push each transaction to Stripe, using DB for dedup
   let pushed = 0;
   let skipped = 0;
   let errorCount = 0;
 
   for (const txn of allTransactions) {
-    // Check DB-based dedup
-    if (isAlreadySynced(txn.processorTxnId, txn.processorName)) {
+    if (isAlreadySynced(txn.processorTxnId, txn.processorName, merchant.id)) {
       skipped++;
       continue;
     }
 
     try {
-      const record = await pushPaymentRecord(txn);
-      markSynced(txn.processorTxnId, txn.processorName, record.id);
+      const record = await pushPaymentRecord(txn, merchant.stripe_key);
+      markSynced(txn.processorTxnId, txn.processorName, record.id, merchant.id);
       pushed++;
     } catch (err) {
-      // Idempotency collision = already exists in Stripe (race condition)
       if (err.code === 'idempotency_error' || err.statusCode === 400) {
-        markSynced(txn.processorTxnId, txn.processorName, null);
+        markSynced(txn.processorTxnId, txn.processorName, null, merchant.id);
         skipped++;
       } else {
         errorCount++;
-        addSyncError(err.message, txn.processorTxnId);
-        console.error(`   ❌ Error syncing ${txn.processorTxnId}: ${err.message}`);
+        addSyncError(err.message, txn.processorTxnId, merchant.id);
       }
     }
   }
 
-  // Update sync state
-  updateSyncState();
-
-  return {
-    pushed,
-    skipped,
-    errors: errorCount,
-    total: allTransactions.length,
-  };
+  return { pushed, skipped, errors: errorCount, total: allTransactions.length };
 }
 
-/**
- * Describe a cron schedule in human-readable form.
- */
 function describeSchedule(schedule) {
   const descriptions = {
     '0 6 * * *': 'Daily at 6:00 AM',

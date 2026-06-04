@@ -2,7 +2,7 @@
   "$schema": "https://stripe.com/stripe-app.schema.json",
   "id": "com.bridge.payment-sync",
   "name": "Bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icon": "./bridge_icon_32.png",
   "ui_extension": {
     "views": [

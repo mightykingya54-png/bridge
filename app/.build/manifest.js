@@ -13,7 +13,7 @@ export {
  };
 
 // Timestamp changes on every export, ensuring the dev server detects a rebuild
-export const BUILD_TIME = '2026-06-04 18:50:48.271755 +0530 IST m=+3.072281918';
+export const BUILD_TIME = '2026-06-04 19:39:15.574835 +0530 IST m=+2.110192001';
 
 // App manifest — consumed by the Dashboard to configure the app
 export default {
@@ -54,5 +54,5 @@ export default {
       }
     ]
   },
-  "version": "0.1.0"
+  "version": "0.2.0"
 };

@@ -9,17 +9,14 @@ if (existsSync(envPath)) {
   console.warn('⚠️  No .env file found. Copy .env.example to .env and fill in your keys.');
 }
 
-function required(name) {
-  const val = process.env[name];
-  if (!val) {
-    throw new Error(`Missing required env var: ${name}. Set it in .env`);
-  }
-  return val;
-}
-
+/**
+ * Server config.
+ * STRIPE_SECRET_KEY is now OPTIONAL.
+ * Merchants provide their own keys at runtime via the Stripe App UI.
+ */
 export const config = {
   stripe: {
-    secretKey: required('STRIPE_SECRET_KEY'),
+    secretKey: process.env.STRIPE_SECRET_KEY || '', // optional now
   },
   paypal: {
     clientId: process.env.PAYPAL_CLIENT_ID || '',
@@ -28,4 +25,6 @@ export const config = {
   },
   port: parseInt(process.env.PORT || '3000', 10),
   databasePath: process.env.DATABASE_PATH || './data/bridge.db',
+  /** Master API key for the server operator. Optional — used for admin/debug. */
+  masterKey: process.env.MASTER_API_KEY || '',
 };

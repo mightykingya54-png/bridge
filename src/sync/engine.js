@@ -1,10 +1,8 @@
 /**
  * Sync Engine — Core sync orchestration.
  *
- * Fetches transactions from a processor (PayPal) and pushes them
- * to Stripe Payment Records, using SQLite for persistent dedup.
- *
- * Used by both the scheduled cron job and the manual API endpoint.
+ * Fetches transactions from a processor and pushes them
+ * to Stripe Payment Records, using per-merchant credentials.
  */
 import { fetchTransactions } from '../connectors/paypal.js';
 import { pushPaymentRecord, pushRefundRecord } from '../connectors/stripe.js';
@@ -13,24 +11,25 @@ import {
   markSynced,
   addSyncError,
   updateSyncState,
-  getState,
   lookupStripeRecordId,
   markRefundSynced,
   isRefundAlreadySynced,
 } from './state.js';
 
-const SYNC_LOOKBACK_DAYS = 30; // how far back to scan on first sync
+const SYNC_LOOKBACK_DAYS = 30;
 
 /**
- * Run one sync cycle.
+ * Run one sync cycle for a specific merchant.
  *
- * @param {Object} [options]
- * @param {string} [options.startDate] - ISO date (default: last sync or 30 days back)
- * @param {string} [options.endDate] - ISO date (default: now)
- * @returns {Promise<{pushed: number, skipped: number, errors: number, total: number, recordIds: string[]}>}
+ * @param {Object} options
+ * @param {Object} options.merchant - Merchant object with stripe_key, paypal_client_id, etc.
+ * @param {string} [options.startDate]
+ * @param {string} [options.endDate]
  */
 export async function runSync(options = {}) {
-  const state = getState();
+  const { merchant } = options;
+  if (!merchant) throw new Error('Merchant config required for sync');
+  const merchantId = merchant.id;
 
   // Determine date range
   const endDate = options.endDate
@@ -40,13 +39,16 @@ export async function runSync(options = {}) {
   let startDate;
   if (options.startDate) {
     startDate = new Date(options.startDate);
-  } else if (state.lastSyncAt) {
-    // Start from last sync minus 1h overlap for edge cases
-    startDate = new Date(new Date(state.lastSyncAt).getTime() - 60 * 60 * 1000);
   } else {
-    // First ever sync: look back SYNC_LOOKBACK_DAYS
+    // Always sync last 7 days by default (PayPal might not have old data)
     startDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   }
+
+  const paypalCreds = {
+    clientId: merchant.paypal_client_id,
+    clientSecret: merchant.paypal_client_secret,
+    environment: merchant.paypal_environment,
+  };
 
   // Fetch all pages from PayPal
   let page = 1;
@@ -57,6 +59,7 @@ export async function runSync(options = {}) {
     const batch = await fetchTransactions(
       startDate.toISOString(),
       endDate.toISOString(),
+      paypalCreds,
       page
     );
     allTransactions = allTransactions.concat(batch.transactions || []);
@@ -71,31 +74,28 @@ export async function runSync(options = {}) {
   const recordIds = [];
 
   for (const txn of allTransactions) {
-    // DB-level dedup
-    if (isAlreadySynced(txn.processorTxnId, txn.processorName)) {
+    if (isAlreadySynced(txn.processorTxnId, txn.processorName, merchantId)) {
       skipped++;
       continue;
     }
 
     try {
-      const record = await pushPaymentRecord(txn);
-      markSynced(txn.processorTxnId, txn.processorName, record.id);
+      const record = await pushPaymentRecord(txn, merchant.stripe_key);
+      markSynced(txn.processorTxnId, txn.processorName, record.id, merchantId);
       recordIds.push(record.id);
       pushed++;
     } catch (err) {
-      // Stripe idempotency = already exists (race condition on concurrent runs)
       if (err.code === 'idempotency_error' || err.statusCode === 400) {
-        markSynced(txn.processorTxnId, txn.processorName, null);
+        markSynced(txn.processorTxnId, txn.processorName, null, merchantId);
         skipped++;
       } else {
         errorCount++;
-        addSyncError(err.message, txn.processorTxnId);
+        addSyncError(err.message, txn.processorTxnId, merchantId);
       }
     }
   }
 
-  // Update aggregate sync state
-  updateSyncState();
+  updateSyncState(merchantId);
 
   return {
     pushed,
@@ -109,36 +109,30 @@ export async function runSync(options = {}) {
 
 /**
  * Process a refund for a payment record that was previously synced.
- *
- * @param {Object} refund
- * @param {string} refund.processorTxnId - Refund's processor transaction ID
- * @param {string} refund.paymentProcessorTxnId - Original payment's processor transaction ID
- * @param {number} refund.amount - Refund amount in cents
- * @param {string} refund.currency - Currency code
- * @param {number} refund.initiatedAt - Unix timestamp
- * @param {string} refund.processorName - e.g. 'paypal'
- * @returns {Promise<{success: boolean, stripePaymentRecordId: string, stripeRefundRecordId: string, skipped: boolean}>}
  */
 export async function processRefund(refund) {
-  // Check DB dedup first
-  if (isRefundAlreadySynced(refund.processorTxnId, refund.processorName)) {
+  const merchant = refund.merchant;
+  if (!merchant) throw new Error('Merchant config required for refund');
+  const merchantId = merchant.id;
+
+  if (isRefundAlreadySynced(refund.processorTxnId, refund.processorName, merchantId)) {
     return { success: true, skipped: true };
   }
 
-  // Look up the original payment's Stripe Payment Record ID
   const stripePaymentRecordId = lookupStripeRecordId(
     refund.paymentProcessorTxnId,
-    refund.processorName
+    refund.processorName,
+    merchantId
   );
 
   if (!stripePaymentRecordId) {
-    const msg = `Cannot process refund ${refund.processorTxnId}: original payment ${refund.paymentProcessorTxnId} not found in DB. Payment may not have been synced yet.`;
-    addSyncError(msg, refund.processorTxnId);
-    return { success: false, skipped: false, error: msg };
+    const msg = `Cannot process refund ${refund.processorTxnId}: original payment ${refund.paymentProcessorTxnId} not found in DB.`;
+    addSyncError(msg, refund.processorTxnId, merchantId);
+    return { success: false, error: msg };
   }
 
   try {
-    const result = await pushRefundRecord(stripePaymentRecordId, refund);
+    const result = await pushRefundRecord(stripePaymentRecordId, refund, merchant.stripe_key);
 
     markRefundSynced(
       refund.processorTxnId,
@@ -147,17 +141,16 @@ export async function processRefund(refund) {
       stripePaymentRecordId,
       result.id,
       refund.amount,
-      refund.currency
+      refund.currency,
+      merchantId
     );
 
     return {
       success: true,
-      skipped: false,
       stripePaymentRecordId,
       stripeRefundRecordId: result.id,
     };
   } catch (err) {
-    // Stripe idempotency — already exists
     if (err.code === 'idempotency_error' || err.statusCode === 400) {
       markRefundSynced(
         refund.processorTxnId,
@@ -166,11 +159,12 @@ export async function processRefund(refund) {
         stripePaymentRecordId,
         null,
         refund.amount,
-        refund.currency
+        refund.currency,
+        merchantId
       );
       return { success: true, skipped: true };
     }
-    addSyncError(err.message, refund.processorTxnId);
-    return { success: false, skipped: false, error: err.message };
+    addSyncError(err.message, refund.processorTxnId, merchantId);
+    return { success: false, error: err.message };
   }
 }

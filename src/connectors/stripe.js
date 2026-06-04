@@ -1,26 +1,48 @@
+/**
+ * Stripe Connector — Push transactions to Stripe Payment Records API.
+ *
+ * Now accepts a stripeKey parameter for per-merchant usage.
+ * Falls back to the global config key for backward compatibility.
+ */
 import Stripe from 'stripe';
 import { config } from '../config.js';
 
-const stripe = new Stripe(config.stripe.secretKey);
+/**
+ * Create a Stripe client with the given secret key.
+ * Falls back to config's secret key if not provided.
+ */
+function getClient(stripeKey) {
+  const key = stripeKey || config.stripe.secretKey;
+  if (!key) {
+    throw new Error('No Stripe secret key provided. Configure your Stripe key in the Bridge app settings.');
+  }
+  // Cache clients by key to avoid creating new instances each time
+  const cache = getClient._cache || (getClient._cache = new Map());
+  if (!cache.has(key)) {
+    cache.set(key, new Stripe(key));
+  }
+  return cache.get(key);
+}
 
 /**
  * Push an external (non-Stripe) payment into Stripe's Payment Records API.
  *
  * @param {Object} payment
- * @param {string} payment.processorTxnId - Unique processor transaction ID (e.g. PayPal txn ID)
+ * @param {string} payment.processorTxnId
  * @param {number} payment.amount - Amount in cents
- * @param {string} payment.currency - Currency code (e.g. 'usd')
- * @param {number} payment.initiatedAt - Unix timestamp when payment was taken
- * @param {'guaranteed'|'informational'} [payment.outcome] - Default 'guaranteed'
- * @param {string} payment.processorName - e.g. 'paypal'
+ * @param {string} payment.currency
+ * @param {number} payment.initiatedAt - Unix timestamp
+ * @param {string} [payment.outcome]
+ * @param {string} payment.processorName
  * @param {string} [payment.description]
- * @param {string} [payment.payerDisplay] - Display name for payer (e.g. PayPal email)
+ * @param {string} [payment.payerDisplay]
+ * @param {string} [stripeKey] - Per-merchant Stripe key (optional, falls back to config)
  */
-export async function pushPaymentRecord(payment) {
+export async function pushPaymentRecord(payment, stripeKey) {
+  const stripe = getClient(stripeKey);
   const idempotencyKey = `${payment.processorName}_${payment.processorTxnId}`;
   const now = Math.floor(Date.now() / 1000);
 
-  // Build optional/conditional params
   const params = {
     amount_requested: {
       currency: payment.currency,
@@ -43,7 +65,6 @@ export async function pushPaymentRecord(payment) {
     description: payment.description || `Imported from ${payment.processorName}`,
   };
 
-  // Only add guaranteed block if outcome is guaranteed
   if ((payment.outcome || 'guaranteed') === 'guaranteed') {
     params.guaranteed = { guaranteed_at: now };
   }
@@ -57,7 +78,6 @@ export async function pushPaymentRecord(payment) {
     );
     return record;
   } catch (err) {
-    // Enhance error with readable detail
     if (err.raw?.message) {
       err.message = `${err.message} — ${err.raw.message}`;
     }
@@ -67,18 +87,9 @@ export async function pushPaymentRecord(payment) {
 
 /**
  * Push a refund for an existing PaymentRecord.
- * Endpoint: POST /v1/payment_records/{id}/report_refund
- *
- * Schema from OpenAPI spec:
- *   amount[currency] + amount[value]  (required)
- *   initiated_at  (unix timestamp)
- *   outcome=refunded
- *   refunded[refunded_at]=<timestamp>
- *   processor_details[type]=custom
- *   processor_details[custom][refund_reference]=<refund_id>
- *   metadata (optional)
  */
-export async function pushRefundRecord(paymentRecordId, refund) {
+export async function pushRefundRecord(paymentRecordId, refund, stripeKey) {
+  const stripe = getClient(stripeKey);
   const idempotencyKey = `refund_${refund.processorName}_${refund.processorTxnId}`;
   const now = Math.floor(Date.now() / 1000);
 
@@ -118,9 +129,10 @@ export async function pushRefundRecord(paymentRecordId, refund) {
 }
 
 /**
- * Test that the Stripe connection works by fetching account info.
+ * Test that a Stripe connection works by fetching account info.
  */
-export async function testConnection() {
+export async function testConnection(stripeKey) {
+  const stripe = getClient(stripeKey);
   const account = await stripe.accounts.retrieve();
   return {
     connected: true,
@@ -128,5 +140,3 @@ export async function testConnection() {
     businessName: account.business_profile?.name || account.settings?.dashboard?.display_name,
   };
 }
-
-export { stripe };
