@@ -30,6 +30,26 @@ const scheduler = startScheduler({
 const paypalConnected = !!(config.paypal.clientId && config.paypal.clientSecret);
 
 /**
+ * GET /
+ * Root landing page — shows Bridge is running.
+ */
+app.get('/', async (req, res) => {
+  res.json({
+    app: 'Bridge',
+    version: '0.1.0',
+    status: 'running',
+    endpoints: {
+      status: '/api/status',
+      sync: 'POST /api/sync',
+      refund: 'POST /api/refund',
+      syncedIds: '/api/synced-ids',
+      refunds: '/api/refunds',
+    },
+    docs: 'https://github.com/mightykingya54-png/bridge',
+  });
+});
+
+/**
  * GET /api/status
  * Returns current connection and sync status from persistent DB.
  */
