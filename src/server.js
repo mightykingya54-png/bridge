@@ -14,6 +14,7 @@ import { pushPaymentRecord, pushRefundRecord, testConnection as testStripe } fro
 import { fetchTransactions, testConnection as testPaypal } from './connectors/paypal.js';
 import { runSync, processRefund } from './sync/engine.js';
 import { startScheduler } from './sync/scheduler.js';
+import { setupWebUI } from './web-ui.js';
 import {
   createMerchant,
   getMerchant,
@@ -36,9 +37,10 @@ app.use(express.json());
 // GET endpoints (status, configure, synced-ids, refunds) work without
 // auth for the Stripe App UI to show before registration.
 function authRequired(req, res, next) {
-  // Skip auth for register endpoint and root status
+  // Skip auth for register endpoint, root status, and web UI
   if (req.path === '/api/register' && req.method === 'POST') return next();
   if (req.path === '/' && req.method === 'GET') return next();
+  if (req.path === '/app') return next();
 
   // Allow GET requests without auth (old UI compatibility)
   if (req.method === 'GET') return next();
@@ -373,6 +375,12 @@ process.on('SIGTERM', () => {
   closeDatabase();
   process.exit(0);
 });
+
+// ── Serve Web UI (standalone setup page) ─────────────────────────
+const BASE_URL = config.stripe.secretKey
+  ? 'https://bridge-production-ad61.up.railway.app'
+  : `http://0.0.0.0:${PORT}`;
+setupWebUI(app, BASE_URL);
 
 // ── Start server ────────────────────────────────────────────────
 const PORT = 8080;
