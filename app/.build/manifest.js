@@ -13,7 +13,7 @@ export {
  };
 
 // Timestamp changes on every export, ensuring the dev server detects a rebuild
-export const BUILD_TIME = '2026-06-04 19:39:15.574835 +0530 IST m=+2.110192001';
+export const BUILD_TIME = '2026-06-04 22:46:32.733512 +0530 IST m=+1.724075126';
 
 // App manifest — consumed by the Dashboard to configure the app
 export default {
@@ -50,9 +50,9 @@ export default {
     "views": [
       {
         "component": "App",
-        "viewport": "stripe.dashboard.home.overview"
+        "viewport": "settings"
       }
     ]
   },
-  "version": "0.2.0"
+  "version": "0.2.1"
 };
