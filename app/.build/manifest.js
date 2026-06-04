@@ -13,7 +13,7 @@ export {
  };
 
 // Timestamp changes on every export, ensuring the dev server detects a rebuild
-export const BUILD_TIME = '2026-06-04 22:46:32.733512 +0530 IST m=+1.724075126';
+export const BUILD_TIME = '2026-06-05 01:07:32.615648 +0530 IST m=+1.272796793';
 
 // App manifest — consumed by the Dashboard to configure the app
 export default {
@@ -25,7 +25,7 @@ export default {
   "permissions": [
     {
       "permission": "payment_records_write",
-      "purpose": "Sync PayPal (and other processor) transactions into Stripe Payment Records API so all revenue appears in Stripe."
+      "purpose": "Sync PayPal transactions into Stripe Payment Records API so all revenue appears in Stripe."
     },
     {
       "permission": "payment_records_read",
@@ -33,7 +33,7 @@ export default {
     },
     {
       "permission": "balance_read",
-      "purpose": "Display synced transaction summaries in the Bridge dashboard panel."
+      "purpose": "Display synced transaction summaries in the Bridge dashboard."
     }
   ],
   "sandbox_install_compatible": true,
@@ -42,17 +42,16 @@ export default {
     "content_security_policy": {
       "connect-src": [
         "https://bridge-production-ad61.up.railway.app/api/",
-        "https://api-m.sandbox.paypal.com/v2/",
-        "https://api-m.paypal.com/v2/"
+        "https://bridge-production-ad61.up.railway.app/app"
       ],
-      "purpose": "Allow Bridge to connect to its backend server and PayPal API."
+      "purpose": "Allow Bridge to connect to its backend server for sync operations."
     },
     "views": [
       {
         "component": "App",
-        "viewport": "settings"
+        "viewport": "stripe.dashboard.drawer.default"
       }
     ]
   },
-  "version": "0.2.1"
+  "version": "0.3.0"
 };

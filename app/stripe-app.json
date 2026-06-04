@@ -2,29 +2,28 @@
   "$schema": "https://stripe.com/stripe-app.schema.json",
   "id": "com.bridge.payment-sync",
   "name": "Bridge",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "icon": "./bridge_icon_32.png",
   "ui_extension": {
     "views": [
       {
-        "viewport": "settings",
+        "viewport": "stripe.dashboard.drawer.default",
         "component": "App"
       }
     ],
     "content_security_policy": {
       "connect-src": [
         "https://bridge-production-ad61.up.railway.app/api/",
-        "https://api-m.sandbox.paypal.com/v2/",
-        "https://api-m.paypal.com/v2/"
+        "https://bridge-production-ad61.up.railway.app/app"
       ],
-      "purpose": "Allow Bridge to connect to its backend server and PayPal API."
+      "purpose": "Allow Bridge to connect to its backend server for sync operations."
     }
   },
   "extensions": null,
   "permissions": [
     {
       "permission": "payment_records_write",
-      "purpose": "Sync PayPal (and other processor) transactions into Stripe Payment Records API so all revenue appears in Stripe."
+      "purpose": "Sync PayPal transactions into Stripe Payment Records API so all revenue appears in Stripe."
     },
     {
       "permission": "payment_records_read",
@@ -32,7 +31,7 @@
     },
     {
       "permission": "balance_read",
-      "purpose": "Display synced transaction summaries in the Bridge dashboard panel."
+      "purpose": "Display synced transaction summaries in the Bridge dashboard."
     }
   ],
   "distribution_type": "private",
