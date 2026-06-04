@@ -12,7 +12,7 @@ import {
   Inline,
 } from '@stripe/ui-extension-sdk/ui';
 
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = 'https://bridge-production-ad61.up.railway.app';
 
 interface SyncStatus {
   connected: boolean;
