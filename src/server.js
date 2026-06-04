@@ -187,7 +187,7 @@ process.on('SIGTERM', () => {
 /**
  * Start server.
  */
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🌉 Bridge API server running on http://0.0.0.0:${PORT}`);
   console.log(`   Stripe: ${config.stripe.secretKey ? '✅ configured' : '❌ missing'}`);
