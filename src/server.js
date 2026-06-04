@@ -32,12 +32,18 @@ app.use(cors());
 app.use(express.json());
 
 // ── Auth Middleware ──────────────────────────────────────────────
-// All endpoints except /api/register require a valid API key.
+// POST endpoints (sync, refund, configure) require auth.
+// GET endpoints (status, configure, synced-ids, refunds) work without
+// auth for the Stripe App UI to show before registration.
 function authRequired(req, res, next) {
   // Skip auth for register endpoint and root status
   if (req.path === '/api/register' && req.method === 'POST') return next();
   if (req.path === '/' && req.method === 'GET') return next();
 
+  // Allow GET requests without auth (old UI compatibility)
+  if (req.method === 'GET') return next();
+
+  // POST endpoints require API key
   const authHeader = req.headers.authorization || '';
   const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
 
@@ -117,6 +123,11 @@ app.post('/api/register', (req, res) => {
  * Get current merchant configuration (redacted).
  */
 app.get('/api/configure', (req, res) => {
+  // Unauthenticated
+  if (!req.merchant) {
+    return res.json({ needsAuth: true, message: 'Register at POST /api/register to get your API key.' });
+  }
+
   if (req.isMaster) {
     return res.json({ merchants: getAllMerchants().map(m => ({
       id: m.id,
@@ -199,10 +210,24 @@ app.post('/api/configure', async (req, res) => {
 
 /**
  * GET /api/status
- * Returns connection and sync status for the authenticated merchant.
+ * Returns connection and sync status.
+ * Works without auth (returns generic status) or with auth (returns merchant status).
  */
 app.get('/api/status', async (req, res) => {
   try {
+    // Unauthenticated — return generic status (for old v0.1.0 UI compatibility)
+    if (!req.merchant) {
+      return res.json({
+        merchant: null,
+        stripe: { connected: false },
+        paypal: { connected: false },
+        sync: { lastSyncAt: null, totalSynced: 0, errors: [] },
+        scheduler: { schedule: scheduler.schedule, running: true },
+        needsAuth: true,
+        message: 'Register at POST /api/register to get your API key.',
+      });
+    }
+
     let stripeInfo = null;
     let paypalInfo = null;
 
