@@ -658,18 +658,21 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
         // Open Paddle checkout overlay with items directly
         // Paddle.js handles customer creation, payment, and subscription setup
         if (typeof Paddle !== 'undefined' && Paddle.Checkout) {
-          await Paddle.Checkout.open({
-            items: [{ priceId: d.priceId, quantity: 1 }],
-            customData: { merchant_id: API_KEY },
-            settings: {
-              displayMode: 'overlay',
-              theme: 'light',
-            },
-            onCompleted: function() {
-              // Refresh subscription status after checkout
-              loadDashboard();
-            },
-          });
+          try {
+            await Paddle.Checkout.open({
+              items: [{ priceId: d.priceId, quantity: 1 }],
+              customData: { merchant_id: API_KEY },
+              settings: {
+                displayMode: 'overlay',
+                theme: 'light',
+              },
+            });
+            // Checkout completed successfully — refresh subscription status
+            loadDashboard();
+          } catch (checkoutErr) {
+            // User closed or checkout failed — silently handle
+            loadDashboard();
+          }
         } else {
           throw new Error('Paddle.js not loaded. Please refresh and try again.');
         }
