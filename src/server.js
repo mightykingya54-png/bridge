@@ -317,7 +317,7 @@ app.get('/api/status', async (req, res) => {
     }
 
     const merchantId = req.merchant?.id || '';
-    const syncState = await getState();
+    const syncState = await getState(merchantId);
 
     res.json({
       merchant: {

@@ -13,10 +13,12 @@ import {
   markSynced,
   addSyncError,
   canSync,
+  updateSyncState,
 } from './state.js';
 
 const DEFAULT_SCHEDULE = '0 6 * * *';
-const SYNC_LOOKBACK_DAYS = 7;
+// Must match engine.js SYNC_LOOKBACK_DAYS for consistency
+const SYNC_LOOKBACK_DAYS = 30;
 
 /**
  * Start the sync scheduler.
@@ -136,6 +138,9 @@ async function runMerchantSync(merchant) {
       }
     }
   }
+
+  // Update the global sync state timestamp so /api/status shows accurate lastSyncAt
+  await updateSyncState(merchant.id);
 
   return { pushed, skipped, errors: errorCount, total: allTransactions.length };
 }

@@ -466,20 +466,26 @@ export async function deleteMerchant(id) {
 }
 
 /**
- * Get the current sync state.
+ * Get the sync state for a specific merchant.
+ * If merchantId is empty, returns global totals (legacy fallback).
  */
-export async function getState() {
+export async function getState(merchantId = '') {
   const { rows } = await query('SELECT * FROM sync_state WHERE id = 1');
   const state = rows[0];
-  const totalSynced = state?.total_synced || 0;
 
-  // Count unique processor txns in the DB for accuracy
-  const { rows: countRows } = await query('SELECT COUNT(*) as count FROM synced_transactions');
-  const count = parseInt(countRows[0]?.count || '0', 10);
+  // Count unique processor txns for this merchant
+  let count = 0;
+  if (merchantId) {
+    const { rows: countRows } = await query('SELECT COUNT(*) as count FROM synced_transactions WHERE merchant_id = $1', [merchantId]);
+    count = parseInt(countRows[0]?.count || '0', 10);
+  } else {
+    const { rows: countRows } = await query('SELECT COUNT(*) as count FROM synced_transactions');
+    count = parseInt(countRows[0]?.count || '0', 10);
+  }
 
   return {
     lastSyncAt: state?.last_sync_at || null,
-    totalSynced: count || totalSynced,
+    totalSynced: count,
   };
 }
 
