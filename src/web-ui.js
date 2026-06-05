@@ -4,6 +4,7 @@
  */
 export function setupWebUI(app, BASE_URL) {
   app.get('/app', (req, res) => {
+    res.set('Cache-Control', 'no-store, must-revalidate');
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
