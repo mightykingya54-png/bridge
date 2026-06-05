@@ -406,7 +406,18 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   // Initialize Paddle.js with client-side token
   const PADDLE_TOKEN = ${JSON.stringify(PADDLE_CLIENT_TOKEN)};
   if (typeof Paddle !== 'undefined' && PADDLE_TOKEN) {
-    Paddle.Initialize({ token: PADDLE_TOKEN });
+    try {
+      Paddle.Initialize({ token: PADDLE_TOKEN });
+    } catch (e) {
+      console.error('Paddle init failed:', e);
+    }
+  } else if (PADDLE_TOKEN) {
+    // Paddle.js not loaded yet — wait and retry
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof Paddle !== 'undefined') {
+        try { Paddle.Initialize({ token: PADDLE_TOKEN }); } catch (e) { console.error(e); }
+      }
+    });
   }
 
   // Smooth scroll for anchor links
@@ -427,11 +438,12 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   // Handle checkout redirect params
   const params = new URLSearchParams(window.location.search);
   if (params.get('checkout') === 'success' && API_KEY) {
-    // Checkout completed — show dashboard and reload subscription status
+    // Checkout completed — show dashboard and poll until webhook arrives
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
     document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
     loadDashboard();
+    pollSubscriptionStatus();
     // Clean up URL param
     window.history.replaceState({}, document.title, '/app');
   } else if (params.get('oauth') === 'success' && API_KEY) {
@@ -667,18 +679,8 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
                 theme: 'light',
               },
             });
-            // Checkout completed — poll for subscription status (webhook may be delayed)
-            loadDashboard();
-            // Poll up to 15s for subscription to become active
-            for (let i = 0; i < 15; i++) {
-              await new Promise(r => setTimeout(r, 1000));
-              const subR = await fetch(API + '/api/subscription', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
-              const subD = await subR.json();
-              if (subD.active && (subD.stripeSubscriptionId || subD.paddleSubscriptionId)) {
-                loadDashboard();
-                break;
-              }
-            }
+            // Checkout completed — poll subscription status until webhook arrives
+            await pollSubscriptionStatus();
           } catch (checkoutErr) {
             // User closed or checkout failed — silently handle
             loadDashboard();
@@ -754,6 +756,24 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Poll subscription status after checkout until webhook arrives
+  async function pollSubscriptionStatus() {
+    for (let i = 0; i < 6; i++) {  // try 6 times, every 2 sec = 12 sec total
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        const r = await fetch(API + '/api/subscription', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
+        const sub = await r.json();
+        if (sub.active && (sub.stripeSubscriptionId || sub.paddleSubscriptionId)) {
+          // Webhook has arrived — subscription is active
+          loadDashboard();
+          return;
+        }
+      } catch (e) { /* retry */ }
+    }
+    // Fallback: load dashboard showing what we have
+    loadDashboard();
   }
 
   function setLoading(btnId, loading) {

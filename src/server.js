@@ -733,9 +733,9 @@ app.post('/api/paddle-webhook', async (req, res) => {
 });
 
 // ── Serve Web UI (standalone setup page) ─────────────────────────
-const BASE_URL = config.stripe.secretKey
-  ? 'https://bridge-production-ad61.up.railway.app'
-  : `http://0.0.0.0:${PORT}`;
+// Hardcode the production URL. This is the canonical domain for Bridge.
+// Never fall back to localhost — Railway always provides a public URL.
+const BASE_URL = 'https://bridge-production-ad61.up.railway.app';
 setupWebUI(app, BASE_URL, config.paddle.clientToken);
 
 // ── Start server ────────────────────────────────────────────────
