@@ -92,6 +92,15 @@ export function setupWebUI(app, BASE_URL) {
       <div id="error-sync" class="error" style="margin-top:8px"></div>
       <div id="success-sync" class="success" style="margin-top:8px"></div>
       <hr style="margin: 20px 0; border: none; border-top: 1px solid #e6eef8;" />
+      <div id="billing-display" style="margin-bottom:16px">
+        <h2 style="font-size:16px;margin-bottom:8px">Plan</h2>
+        <p>Status: <span id="sub-status" class="badge badge-ok">Active</span></p>
+        <p id="sub-detail">7-day free trial</p>
+        <button id="btn-subscribe" onclick="subscribe()" style="margin-top:8px;background:#059669">Subscribe — $49/mo</button>
+        <button id="btn-manage-billing" onclick="manageBilling()" style="margin-top:8px;display:none">Manage Billing</button>
+        <div id="error-billing" class="error" style="margin-top:4px"></div>
+      </div>
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #e6eef8;" />
       <button onclick="resetAll()" style="background:#dc2626">Reset & Start Over</button>
     </div>
 
@@ -193,6 +202,76 @@ export function setupWebUI(app, BASE_URL) {
       } catch (e) {
         console.error('Dashboard load failed:', e);
       }
+
+      // Load subscription status
+      try {
+        const r = await fetch(API + '/api/subscription', {
+          headers: { 'Authorization': 'Bearer ' + API_KEY },
+        });
+        const sub = await r.json();
+        if (sub.needsAuth) return;
+
+        const statusEl = document.getElementById('sub-status');
+        const detailEl = document.getElementById('sub-detail');
+        const subBtn = document.getElementById('btn-subscribe');
+        const mgmtBtn = document.getElementById('btn-manage-billing');
+
+        if (sub.active) {
+          statusEl.textContent = '✅ Active (' + (sub.tier || 'monthly') + ')';
+          statusEl.className = 'badge badge-ok';
+          if (sub.stripeSubscriptionId) {
+            detailEl.textContent = 'Subscription active. Manage from Stripe.';
+            subBtn.style.display = 'none';
+            mgmtBtn.style.display = 'inline-block';
+          } else {
+            const trialEnd = new Date(sub.trialEnd);
+            detailEl.textContent = 'Trial expires ' + trialEnd.toLocaleDateString();
+            subBtn.style.display = 'inline-block';
+            mgmtBtn.style.display = 'none';
+          }
+        } else {
+          statusEl.textContent = '⚠️ Expired';
+          statusEl.className = 'badge badge-no';
+          detailEl.textContent = 'Trial ended. Subscribe to continue syncing.';
+          subBtn.style.display = 'inline-block';
+          mgmtBtn.style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Subscription load failed:', e);
+      }
+    }
+
+    async function subscribe() {
+      document.getElementById('error-billing').textContent = '';
+      document.getElementById('btn-subscribe').disabled = true;
+      try {
+        const r = await fetch(API + '/api/create-checkout', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + API_KEY },
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Checkout failed');
+        // Redirect to Stripe Checkout
+        window.location.href = d.url;
+      } catch (e) {
+        document.getElementById('error-billing').textContent = e.message;
+        document.getElementById('btn-subscribe').disabled = false;
+      }
+    }
+
+    async function manageBilling() {
+      document.getElementById('error-billing').textContent = '';
+      try {
+        const r = await fetch(API + '/api/create-checkout', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + API_KEY },
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Portal failed');
+        window.location.href = d.url;
+      } catch (e) {
+        document.getElementById('error-billing').textContent = e.message;
+      }
     }
 
     async function syncNow() {
@@ -205,6 +284,11 @@ export function setupWebUI(app, BASE_URL) {
           headers: { 'Authorization': 'Bearer ' + API_KEY },
         });
         const d = await r.json();
+        if (r.status === 402) {
+          document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required');
+          loadDashboard();
+          return;
+        }
         if (!r.ok) throw new Error(d.error || 'Sync failed');
         document.getElementById('success-sync').textContent = '✅ Synced! ' + d.pushed + ' pushed, ' + d.skipped + ' skipped';
         loadDashboard();

@@ -74,6 +74,17 @@ export async function initDatabase() {
     );
   `);
 
+  // Add subscription columns if they don't exist (safe for existing DBs)
+  try {
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial'`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free'`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS trial_end_at TIMESTAMP`);
+  } catch (e) {
+    // Some Postgres versions don't support IF NOT EXISTS for columns — ignore
+  }
+
   // Ensure the default state row exists (backward compat)
   const { rows } = await query('SELECT id FROM sync_state WHERE id = 1');
   if (rows.length === 0) {
@@ -145,6 +156,90 @@ export async function updateMerchantCredentials(id, credentials) {
     values
   );
   return getMerchant(id);
+}
+
+// ── Subscription / Billing ──────────────────────────────────────
+
+/**
+ * Update a merchant's subscription details after Stripe checkout/webhook.
+ */
+export async function updateSubscription(merchantId, { stripeCustomerId, stripeSubscriptionId, status, tier }) {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (stripeCustomerId) { fields.push(`stripe_customer_id = $${idx}`); values.push(stripeCustomerId); idx++; }
+  if (stripeSubscriptionId) { fields.push(`stripe_subscription_id = $${idx}`); values.push(stripeSubscriptionId); idx++; }
+  if (status) { fields.push(`subscription_status = $${idx}`); values.push(status); idx++; }
+  if (tier) { fields.push(`subscription_tier = $${idx}`); values.push(tier); idx++; }
+
+  if (fields.length === 0) return getMerchant(merchantId);
+
+  fields.push('updated_at = NOW()');
+  values.push(merchantId);
+  await query(`UPDATE merchants SET ${fields.join(', ')} WHERE id = $${idx}`, values);
+  return getMerchant(merchantId);
+}
+
+/**
+ * Get subscription summary for a merchant.
+ */
+export async function getSubscription(merchantId) {
+  const { rows } = await query(
+    `SELECT stripe_customer_id, stripe_subscription_id, subscription_status, subscription_tier, trial_end_at, created_at
+     FROM merchants WHERE id = $1`,
+    [merchantId]
+  );
+  if (!rows[0]) return null;
+
+  const sub = rows[0];
+  const now = new Date();
+  const trialEnd = sub.trial_end_at ? new Date(sub.trial_end_at) : null;
+  const createdAt = new Date(sub.created_at);
+
+  // Default trial: 7 days from account creation
+  const effectiveTrialEnd = trialEnd || new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const trialActive = now < effectiveTrialEnd;
+
+  return {
+    stripeCustomerId: sub.stripe_customer_id || null,
+    stripeSubscriptionId: sub.stripe_subscription_id || null,
+    status: sub.subscription_status || 'trial',
+    tier: sub.subscription_tier || 'free',
+    trialEnd: effectiveTrialEnd.toISOString(),
+    trialActive,
+    active: ['active', 'trialing', 'trial'].includes(sub.subscription_status || 'trial') && trialActive,
+  };
+}
+
+/**
+ * Check if a merchant can sync (based on subscription status).
+ * Free tier: unlimited during 7-day trial, then blocked.
+ */
+export async function canSync(merchantId) {
+  const sub = await getSubscription(merchantId);
+  if (!sub) return { allowed: false, reason: 'Merchant not found' };
+  if (sub.active) return { allowed: true };
+  return { allowed: false, reason: 'Trial expired. Subscribe at /app to continue syncing.' };
+}
+
+/**
+ * Count synced transactions for a merchant (for usage-based billing).
+ */
+export async function countSyncedTransactions(merchantId) {
+  const { rows } = await query(
+    'SELECT COUNT(*) as count FROM synced_transactions WHERE merchant_id = $1',
+    [merchantId]
+  );
+  return parseInt(rows[0]?.count || '0', 10);
+}
+
+/**
+ * Find a merchant by Stripe subscription ID.
+ */
+export async function getMerchantBySubscriptionId(subscriptionId) {
+  const { rows } = await query('SELECT * FROM merchants WHERE stripe_subscription_id = $1', [subscriptionId]);
+  return rows[0] || null;
 }
 
 /**

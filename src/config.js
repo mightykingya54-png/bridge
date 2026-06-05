@@ -17,6 +17,8 @@ if (existsSync(envPath)) {
 export const config = {
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || '', // optional now
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    priceId: process.env.STRIPE_PRICE_ID || 'price_1TerCLCYeLNgFTf8sASPUBGN',
   },
   paypal: {
     clientId: process.env.PAYPAL_CLIENT_ID || '',

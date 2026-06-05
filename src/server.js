@@ -19,6 +19,7 @@ import {
   createMerchant,
   getMerchant,
   getMerchantByApiKey,
+  getMerchantBySubscriptionId,
   updateMerchantCredentials,
   getAllMerchants,
   getState,
@@ -27,6 +28,9 @@ import {
   getAllSyncedIds,
   getAllSyncedRefunds,
   closeDatabase,
+  canSync,
+  getSubscription,
+  updateSubscription,
 } from './sync/state.js';
 
 const app = express();
@@ -302,6 +306,16 @@ app.post('/api/sync', async (req, res) => {
     return res.status(400).json({ error: 'PayPal not configured. POST /api/configure with your PayPal keys first.' });
   }
 
+  // Check subscription
+  const { allowed, reason } = await canSync(merchant.id);
+  if (!allowed) {
+    return res.status(402).json({
+      error: 'Subscription required',
+      detail: reason,
+      subscribe: `${BASE_URL}/app#pricing`,
+    });
+  }
+
   try {
     const result = await runSync({
       merchant,
@@ -395,6 +409,142 @@ async function shutdown(signal) {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+// ── Billing / Subscription routes ───────────────────────────────
+
+/**
+ * GET /api/subscription
+ * Returns subscription status for the authenticated merchant.
+ */
+app.get('/api/subscription', async (req, res) => {
+  try {
+    if (!req.merchant) {
+      return res.json({ needsAuth: true, message: 'Register first.' });
+    }
+    const sub = await getSubscription(req.merchant.id);
+    res.json(sub);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/create-checkout
+ * Creates a Stripe Checkout Session for a monthly subscription.
+ * Returns the URL to redirect the user to.
+ */
+app.post('/api/create-checkout', async (req, res) => {
+  try {
+    if (!req.merchant) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    const Stripe = (await import('stripe')).default;
+    const stripe = Stripe(config.stripe.secretKey);
+
+    const merchant = req.merchant;
+    const sub = await getSubscription(merchant.id);
+
+    // If already subscribed with a valid subscription, redirect to billing portal
+    if (sub.active && sub.stripeSubscriptionId) {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: sub.stripeCustomerId,
+        return_url: `${BASE_URL}/app`,
+      });
+      return res.json({ url: session.url });
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{
+        price: config.stripe.priceId,
+        quantity: 1,
+      }],
+      customer: sub.stripeCustomerId || undefined,
+      client_reference_id: merchant.id,
+      metadata: { merchant_id: merchant.id },
+      success_url: `${BASE_URL}/app?checkout=success`,
+      cancel_url: `${BASE_URL}/app#pricing`,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: `Checkout error: ${err.message}` });
+  }
+});
+
+/**
+ * POST /api/stripe-webhook
+ * Receives Stripe webhook events for subscription lifecycle.
+ * Updates the merchant's subscription status in the database.
+ */
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const Stripe = (await import('stripe')).default;
+    const stripe = Stripe(config.stripe.secretKey);
+    const sig = req.headers['stripe-signature'];
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, config.stripe.webhookSecret || '');
+    } catch (err) {
+      // If webhook secret isn't configured, parse raw event for testing
+      console.warn('⚠️  Stripe webhook signature verification skipped (no webhook secret)');
+      event = JSON.parse(req.body.toString());
+    }
+
+    const session = event.data?.object;
+
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const merchantId = session.client_reference_id || session.metadata?.merchant_id;
+        if (merchantId && session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          await updateSubscription(merchantId, {
+            stripeCustomerId: session.customer,
+            stripeSubscriptionId: session.subscription,
+            status: subscription.status,
+            tier: 'monthly',
+          });
+          console.log(`✅ Merchant ${merchantId}: subscribed (sub ${session.subscription})`);
+        }
+        break;
+      }
+
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        const merchant = await getMerchantBySubscriptionId(subscription.id);
+        if (merchant) {
+          const status = event.type === 'customer.subscription.deleted' ? 'canceled' : subscription.status;
+          await updateSubscription(merchant.id, { status });
+          console.log(`ℹ️  Merchant ${merchant.id}: subscription ${status}`);
+        }
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        const subId = invoice.subscription;
+        if (subId) {
+          const merchant = await getMerchantBySubscriptionId(subId);
+          if (merchant) {
+            await updateSubscription(merchant.id, { status: 'past_due' });
+            console.log(`⚠️  Merchant ${merchant.id}: payment failed, status = past_due`);
+          }
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('❌ Webhook error:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // ── Serve Web UI (standalone setup page) ─────────────────────────
 const BASE_URL = config.stripe.secretKey
