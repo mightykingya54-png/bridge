@@ -591,8 +591,8 @@ export function setupWebUI(app, BASE_URL) {
           const err = d.sync.errors[0];
           const time = err.time ? new Date(err.time).toLocaleString() : 'recently';
           errorContent.innerHTML = d.sync.errors.length === 1
-            ? `Last sync failed: <code>${escapeHtml(err.error)}</code> (${time})`
-            : `${d.sync.errors.length} errors since last successful sync. Latest: <code>${escapeHtml(err.error)}</code> (${time})`;
+            ? 'Last sync failed: <code>' + escapeHtml(err.error) + '</code> (' + time + ')'
+            : d.sync.errors.length + ' errors since last successful sync. Latest: <code>' + escapeHtml(err.error) + '</code> (' + time + ')';
           errorBanner.style.display = 'block';
         } else {
           errorBanner.style.display = 'none';
