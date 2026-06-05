@@ -86,7 +86,7 @@ export function setupWebUI(app, BASE_URL) {
       </div>
       <div class="pricing-tag">7-day free trial · $49/month · Cancel anytime</div>
       <div>
-        <a href="#setup" class="btn-cta" onclick="document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Get Started Free</a>
+        <a href="#setup" class="btn-cta" onclick="event.preventDefault();document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Get Started Free</a>
       </div>
     </div>
 
@@ -122,7 +122,7 @@ export function setupWebUI(app, BASE_URL) {
           Automatic daily syncs<br/>
           Cancel anytime — no lock-in
         </div>
-        <a href="#setup" class="btn-cta" onclick="document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Start 7-Day Free Trial</a>
+        <a href="#setup" class="btn-cta" onclick="event.preventDefault();document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Start 7-Day Free Trial</a>
         <p style="font-size:13px;color:#8898aa;margin-top:12px;margin-bottom:0">No credit card required to start.</p>
       </div>
     </div>
