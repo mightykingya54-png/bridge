@@ -7,3 +7,5 @@ data/
 .DS_Store
 *.mjs
 /tmp
+_edge_*.py
+stripe-connect*.png

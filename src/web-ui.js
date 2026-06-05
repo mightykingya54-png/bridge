@@ -302,7 +302,7 @@ export function setupWebUI(app, BASE_URL) {
   </div>
 
   <div class="card step-view" id="s-configure">
-    <h2>Connect your accounts</h2>
+    <h2>Connect your Stripe account</h2>
     <p>Paste your Stripe secret key. Bridge reads transactions only — <strong>read-only access</strong>.</p>
 
     <!-- Stripe key (primary) — always visible -->
@@ -318,13 +318,19 @@ export function setupWebUI(app, BASE_URL) {
       <button onclick="connectStripe()" style="background:#635bff;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">🔗 Connect with Stripe</button>
     </div>
 
-    <label>PayPal Client ID</label>
-    <input type="text" id="paypal-client-id" placeholder="A..." />
-    <label>PayPal Client Secret</label>
-    <input type="password" id="paypal-client-secret" placeholder="E..." />
-    <button id="btn-configure" onclick="configure()">Save & continue</button>
+    <button id="btn-configure" onclick="configure()" style="margin-top:4px;">Save & continue</button>
     <div id="error-configure" class="error" style="margin-top:8px;"></div>
     <div id="success-configure" class="success" style="margin-top:8px;"></div>
+
+    <hr style="margin:24px 0 12px;" />
+    <details style="font-size:13px;color:#64748b;">
+      <summary style="cursor:pointer;font-weight:600;color:#475569;">Add PayPal (optional)</summary>
+      <p style="margin:8px 0 6px;">Bridge can also sync your PayPal transactions into Stripe Revenue Recognition. This step is optional.</p>
+      <label>PayPal Client ID</label>
+      <input type="text" id="paypal-client-id" placeholder="A..." />
+      <label>PayPal Client Secret</label>
+      <input type="password" id="paypal-client-secret" placeholder="E..." />
+    </details>
   </div>
 
   <div class="card step-view" id="s-dashboard">
