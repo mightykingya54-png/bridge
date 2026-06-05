@@ -557,7 +557,18 @@ app.post('/api/stripe-webhook', async (req, res) => {
 app.get('/api/stripe/oauth/start', async (req, res) => {
   try {
     if (!req.merchant) {
-      return res.redirect(`${BASE_URL}/app?error=auth_required`);
+      // Try to find merchant by API key from query param (browser navigation doesn't send headers)
+      const token = req.query.token;
+      if (token) {
+        const merchant = await getMerchantByApiKey(token);
+        if (merchant) {
+          req.merchant = merchant;
+        } else {
+          return res.redirect(`${BASE_URL}/app?error=auth_required`);
+        }
+      } else {
+        return res.redirect(`${BASE_URL}/app?error=auth_required`);
+      }
     }
 
     const clientId = config.stripe.clientId;

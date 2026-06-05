@@ -408,6 +408,10 @@ export function setupWebUI(app, BASE_URL) {
     msg.className = 'success';
     msg.textContent = '✅ Stripe connected! Connect PayPal below to start syncing.';
     loadDashboard();
+  } else if (params.get('error') === 'auth_required' && API_KEY) {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('error-configure').textContent = '⚠️ Session error. Please try connecting Stripe again.';
   } else if (params.get('error') === 'oauth_unavailable' && API_KEY) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-configure').classList.add('active');
@@ -498,9 +502,9 @@ export function setupWebUI(app, BASE_URL) {
 
   // ── Stripe OAuth ──────────────────────────────────────────
   function connectStripe() {
-    // Navigate to OAuth start endpoint
-    // If OAuth is not configured, the server redirects back with ?error=oauth_unavailable
-    window.location.href = API + '/api/stripe/oauth/start';
+    // Navigate to OAuth start endpoint with API key in URL (since direct navigation
+    // doesn't send the Authorization header)
+    window.location.href = API + '/api/stripe/oauth/start?token=' + API_KEY;
   }
 
   function toggleManualStripe() {
