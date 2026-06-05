@@ -22,6 +22,7 @@ import {
   updateMerchantCredentials,
   getAllMerchants,
   getState,
+  initDatabase,
   getRecentErrors,
   getAllSyncedIds,
   getAllSyncedRefunds,
@@ -36,38 +37,42 @@ app.use(express.json());
 // POST endpoints (sync, refund, configure) require auth.
 // GET endpoints (status, configure, synced-ids, refunds) work without
 // auth for the Stripe App UI to show before registration.
-function authRequired(req, res, next) {
-  // Skip auth for register endpoint, root status, and web UI
-  if (req.path === '/api/register' && req.method === 'POST') return next();
-  if (req.path === '/' && req.method === 'GET') return next();
-  if (req.path === '/app') return next();
+async function authRequired(req, res, next) {
+  try {
+    // Skip auth for register endpoint, root status, and web UI
+    if (req.path === '/api/register' && req.method === 'POST') return next();
+    if (req.path === '/' && req.method === 'GET') return next();
+    if (req.path === '/app') return next();
 
-  // Allow GET requests without auth (old UI compatibility)
-  if (req.method === 'GET') return next();
+    // Allow GET requests without auth (old UI compatibility)
+    if (req.method === 'GET') return next();
 
-  // POST endpoints require API key
-  const authHeader = req.headers.authorization || '';
-  const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
+    // POST endpoints require API key
+    const authHeader = req.headers.authorization || '';
+    const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
 
-  if (!apiKey) {
-    return res.status(401).json({ error: 'Missing Authorization header. Use: Bearer <your_api_key>' });
+    if (!apiKey) {
+      return res.status(401).json({ error: 'Missing Authorization header. Use: Bearer <your_api_key>' });
+    }
+
+    // Master key bypass (for debugging / admin)
+    if (config.masterKey && apiKey === config.masterKey) {
+      req.merchant = null;
+      req.isMaster = true;
+      return next();
+    }
+
+    const merchant = await getMerchantByApiKey(apiKey);
+    if (!merchant) {
+      return res.status(401).json({ error: 'Invalid API key. Register at POST /api/register first.' });
+    }
+
+    req.merchant = merchant;
+    req.isMaster = false;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: `Auth error: ${err.message}` });
   }
-
-  // Master key bypass (for debugging / admin)
-  if (config.masterKey && apiKey === config.masterKey) {
-    req.merchant = null;
-    req.isMaster = true;
-    return next();
-  }
-
-  const merchant = getMerchantByApiKey(apiKey);
-  if (!merchant) {
-    return res.status(401).json({ error: 'Invalid API key. Register at POST /api/register first.' });
-  }
-
-  req.merchant = merchant;
-  req.isMaster = false;
-  next();
 }
 app.use(authRequired);
 
@@ -109,46 +114,55 @@ app.get('/', (req, res) => {
  * Create a new merchant account. Returns an API key.
  * Body: { displayName?: string }
  */
-app.post('/api/register', (req, res) => {
-  const displayName = req.body?.displayName || 'Stripe App User';
-  const merchant = createMerchant(displayName);
-  res.status(201).json({
-    merchantId: merchant.id,
-    apiKey: merchant.api_key,
-    displayName: merchant.display_name,
-    message: 'Save your API key — you will not see it again. Use it in the Authorization header.',
-  });
+app.post('/api/register', async (req, res) => {
+  try {
+    const displayName = req.body?.displayName || 'Stripe App User';
+    const merchant = await createMerchant(displayName);
+    res.status(201).json({
+      merchantId: merchant.id,
+      apiKey: merchant.api_key,
+      displayName: merchant.display_name,
+      message: 'Save your API key — you will not see it again. Use it in the Authorization header.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
  * GET /api/configure
  * Get current merchant configuration (redacted).
  */
-app.get('/api/configure', (req, res) => {
-  // Unauthenticated
-  if (!req.merchant) {
-    return res.json({ needsAuth: true, message: 'Register at POST /api/register to get your API key.' });
-  }
+app.get('/api/configure', async (req, res) => {
+  try {
+    // Unauthenticated
+    if (!req.merchant) {
+      return res.json({ needsAuth: true, message: 'Register at POST /api/register to get your API key.' });
+    }
 
-  if (req.isMaster) {
-    return res.json({ merchants: getAllMerchants().map(m => ({
-      id: m.id,
+    if (req.isMaster) {
+      const merchants = await getAllMerchants();
+      return res.json({ merchants: merchants.map(m => ({
+        id: m.id,
+        displayName: m.display_name,
+        stripeConfigured: !!m.stripe_key,
+        paypalConfigured: !!(m.paypal_client_id && m.paypal_client_secret),
+        paypalEnvironment: m.paypal_environment,
+        createdAt: m.created_at,
+      }))});
+    }
+
+    const m = req.merchant;
+    res.json({
+      merchantId: m.id,
       displayName: m.display_name,
       stripeConfigured: !!m.stripe_key,
       paypalConfigured: !!(m.paypal_client_id && m.paypal_client_secret),
       paypalEnvironment: m.paypal_environment,
-      createdAt: m.created_at,
-    }))});
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  const m = req.merchant;
-  res.json({
-    merchantId: m.id,
-    displayName: m.display_name,
-    stripeConfigured: !!m.stripe_key,
-    paypalConfigured: !!(m.paypal_client_id && m.paypal_client_secret),
-    paypalEnvironment: m.paypal_environment,
-  });
 });
 
 /**
@@ -199,7 +213,7 @@ app.post('/api/configure', async (req, res) => {
     }
   }
 
-  const updated = updateMerchantCredentials(merchant.id, updates);
+  const updated = await updateMerchantCredentials(merchant.id, updates);
 
   res.json({
     success: true,
@@ -246,7 +260,7 @@ app.get('/api/status', async (req, res) => {
     }
 
     const merchantId = req.merchant?.id || '';
-    const syncState = getState();
+    const syncState = await getState();
 
     res.json({
       merchant: {
@@ -258,7 +272,7 @@ app.get('/api/status', async (req, res) => {
       sync: {
         lastSyncAt: syncState.lastSyncAt,
         totalSynced: syncState.totalSynced,
-        errors: getRecentErrors(5, merchantId),
+        errors: await getRecentErrors(5, merchantId),
       },
       scheduler: {
         schedule: scheduler.schedule,
@@ -346,10 +360,14 @@ app.post('/api/refund', async (req, res) => {
  * List synced transaction IDs.
  */
 app.get('/api/synced-ids', async (req, res) => {
-  const processor = req.query.processor || 'paypal';
-  const merchantId = req.merchant?.id || '';
-  const ids = getAllSyncedIds(processor, merchantId);
-  res.json({ processor, count: ids.length, transactions: ids });
+  try {
+    const processor = req.query.processor || 'paypal';
+    const merchantId = req.merchant?.id || '';
+    const ids = await getAllSyncedIds(processor, merchantId);
+    res.json({ processor, count: ids.length, transactions: ids });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**
@@ -357,24 +375,25 @@ app.get('/api/synced-ids', async (req, res) => {
  * List synced refunds.
  */
 app.get('/api/refunds', async (req, res) => {
-  const merchantId = req.merchant?.id || '';
-  const refunds = getAllSyncedRefunds(20, merchantId);
-  res.json({ count: refunds.length, refunds });
+  try {
+    const merchantId = req.merchant?.id || '';
+    const refunds = await getAllSyncedRefunds(20, merchantId);
+    res.json({ count: refunds.length, refunds });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Graceful shutdown ───────────────────────────────────────────
-process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down...');
+async function shutdown(signal) {
+  console.log(`\n🛑 ${signal} received. Shutting down...`);
   scheduler.stop();
-  closeDatabase();
+  await closeDatabase();
   process.exit(0);
-});
+}
 
-process.on('SIGTERM', () => {
-  scheduler.stop();
-  closeDatabase();
-  process.exit(0);
-});
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // ── Serve Web UI (standalone setup page) ─────────────────────────
 const BASE_URL = config.stripe.secretKey
@@ -384,11 +403,22 @@ setupWebUI(app, BASE_URL);
 
 // ── Start server ────────────────────────────────────────────────
 const PORT = 8080;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🌉 Bridge API server running on http://0.0.0.0:${PORT}`);
-  console.log(`   Multi-tenant: enabled (merchants register via POST /api/register)`);
-  console.log(`   Master key: ${config.masterKey ? '✅ configured' : '❌ not set (admin endpoints locked)'}`);
-  console.log(`   Database: ${config.databasePath}`);
-  console.log(`   Scheduler: active (${scheduler.schedule})`);
-  console.log('');
+
+async function start() {
+  // Initialize database schema
+  await initDatabase();
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🌉 Bridge API server running on http://0.0.0.0:${PORT}`);
+    console.log(`   Database: PostgreSQL`);
+    console.log(`   Multi-tenant: enabled`);
+    console.log(`   Master key: ${config.masterKey ? '✅ configured' : '❌ not set'}`);
+    console.log(`   Scheduler: active (${scheduler.schedule})`);
+    console.log('');
+  });
+}
+
+start().catch(err => {
+  console.error('❌ Failed to start server:', err.message);
+  process.exit(1);
 });

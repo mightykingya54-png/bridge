@@ -74,28 +74,28 @@ export async function runSync(options = {}) {
   const recordIds = [];
 
   for (const txn of allTransactions) {
-    if (isAlreadySynced(txn.processorTxnId, txn.processorName, merchantId)) {
+    if (await isAlreadySynced(txn.processorTxnId, txn.processorName, merchantId)) {
       skipped++;
       continue;
     }
 
     try {
       const record = await pushPaymentRecord(txn, merchant.stripe_key);
-      markSynced(txn.processorTxnId, txn.processorName, record.id, merchantId);
+      await markSynced(txn.processorTxnId, txn.processorName, record.id, merchantId);
       recordIds.push(record.id);
       pushed++;
     } catch (err) {
       if (err.code === 'idempotency_error' || err.statusCode === 400) {
-        markSynced(txn.processorTxnId, txn.processorName, null, merchantId);
+        await markSynced(txn.processorTxnId, txn.processorName, null, merchantId);
         skipped++;
       } else {
         errorCount++;
-        addSyncError(err.message, txn.processorTxnId, merchantId);
+        await addSyncError(err.message, txn.processorTxnId, merchantId);
       }
     }
   }
 
-  updateSyncState(merchantId);
+  await updateSyncState(merchantId);
 
   return {
     pushed,
@@ -115,11 +115,11 @@ export async function processRefund(refund) {
   if (!merchant) throw new Error('Merchant config required for refund');
   const merchantId = merchant.id;
 
-  if (isRefundAlreadySynced(refund.processorTxnId, refund.processorName, merchantId)) {
+  if (await isRefundAlreadySynced(refund.processorTxnId, refund.processorName, merchantId)) {
     return { success: true, skipped: true };
   }
 
-  const stripePaymentRecordId = lookupStripeRecordId(
+  const stripePaymentRecordId = await lookupStripeRecordId(
     refund.paymentProcessorTxnId,
     refund.processorName,
     merchantId
@@ -127,14 +127,14 @@ export async function processRefund(refund) {
 
   if (!stripePaymentRecordId) {
     const msg = `Cannot process refund ${refund.processorTxnId}: original payment ${refund.paymentProcessorTxnId} not found in DB.`;
-    addSyncError(msg, refund.processorTxnId, merchantId);
+    await addSyncError(msg, refund.processorTxnId, merchantId);
     return { success: false, error: msg };
   }
 
   try {
     const result = await pushRefundRecord(stripePaymentRecordId, refund, merchant.stripe_key);
 
-    markRefundSynced(
+    await markRefundSynced(
       refund.processorTxnId,
       refund.paymentProcessorTxnId,
       refund.processorName,
@@ -152,7 +152,7 @@ export async function processRefund(refund) {
     };
   } catch (err) {
     if (err.code === 'idempotency_error' || err.statusCode === 400) {
-      markRefundSynced(
+      await markRefundSynced(
         refund.processorTxnId,
         refund.paymentProcessorTxnId,
         refund.processorName,
@@ -164,7 +164,7 @@ export async function processRefund(refund) {
       );
       return { success: true, skipped: true };
     }
-    addSyncError(err.message, refund.processorTxnId, merchantId);
+    await addSyncError(err.message, refund.processorTxnId, merchantId);
     return { success: false, error: err.message };
   }
 }

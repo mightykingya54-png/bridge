@@ -24,7 +24,7 @@ export const config = {
     environment: process.env.PAYPAL_ENVIRONMENT || 'sandbox',
   },
   port: parseInt(process.env.PORT || '3000', 10),
-  databasePath: process.env.DATABASE_PATH || './data/bridge.db',
+  databaseUrl: process.env.DATABASE_URL || '',
   /** Master API key for the server operator. Optional — used for admin/debug. */
   masterKey: process.env.MASTER_API_KEY || '',
 };

@@ -34,7 +34,7 @@ export function startScheduler(callbacks = {}) {
     console.log('⏰ Scheduled sync starting...');
     callbacks.onSyncStart?.();
 
-    const merchants = getAllMerchants().filter(m => m.stripe_key && m.paypal_client_id && m.paypal_client_secret);
+    const merchants = (await getAllMerchants()).filter(m => m.stripe_key && m.paypal_client_id && m.paypal_client_secret);
 
     if (merchants.length === 0) {
       console.log('⏰ No merchants configured. Skipping scheduled sync.');
@@ -54,7 +54,7 @@ export function startScheduler(callbacks = {}) {
         totalErrors += result.errors;
       } catch (err) {
         console.error(`   ❌ Merchant ${merchant.id} sync failed: ${err.message}`);
-        addSyncError(`Scheduled sync failed: ${err.message}`, null, merchant.id);
+        await addSyncError(`Scheduled sync failed: ${err.message}`, null, merchant.id);
         totalErrors++;
       }
     }
@@ -106,22 +106,22 @@ async function runMerchantSync(merchant) {
   let errorCount = 0;
 
   for (const txn of allTransactions) {
-    if (isAlreadySynced(txn.processorTxnId, txn.processorName, merchant.id)) {
+    if (await isAlreadySynced(txn.processorTxnId, txn.processorName, merchant.id)) {
       skipped++;
       continue;
     }
 
     try {
       const record = await pushPaymentRecord(txn, merchant.stripe_key);
-      markSynced(txn.processorTxnId, txn.processorName, record.id, merchant.id);
+      await markSynced(txn.processorTxnId, txn.processorName, record.id, merchant.id);
       pushed++;
     } catch (err) {
       if (err.code === 'idempotency_error' || err.statusCode === 400) {
-        markSynced(txn.processorTxnId, txn.processorName, null, merchant.id);
+        await markSynced(txn.processorTxnId, txn.processorName, null, merchant.id);
         skipped++;
       } else {
         errorCount++;
-        addSyncError(err.message, txn.processorTxnId, merchant.id);
+        await addSyncError(err.message, txn.processorTxnId, merchant.id);
       }
     }
   }
