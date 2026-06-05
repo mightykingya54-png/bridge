@@ -86,7 +86,7 @@ export function setupWebUI(app, BASE_URL) {
       </div>
       <div class="pricing-tag">7-day free trial · $49/month · Cancel anytime</div>
       <div>
-        <button class="btn-cta" onclick="document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Get Started Free</button>
+        <a href="#step-register" class="btn-cta">Get Started Free</a>
       </div>
     </div>
 
@@ -122,7 +122,7 @@ export function setupWebUI(app, BASE_URL) {
           Automatic daily syncs<br/>
           Cancel anytime — no lock-in
         </div>
-        <button class="btn-cta" onclick="document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Start 7-Day Free Trial</button>
+        <a href="#step-register" class="btn-cta">Start 7-Day Free Trial</a>
         <p style="font-size:13px;color:#8898aa;margin-top:12px;margin-bottom:0">No credit card required to start.</p>
       </div>
     </div>
@@ -206,11 +206,24 @@ export function setupWebUI(app, BASE_URL) {
       loadDashboard();
     }
 
-    // Handle scrolling to setup from CTA buttons
-    if (window.location.hash === '#setup' || window.location.hash === '#pricing') {
+    // Smooth scroll for hash links (native anchor fallback if JS fails)
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        const target = document.querySelector(href);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+
+    // Handle direct URL hash on page load
+    if (window.location.hash) {
       setTimeout(() => {
-        document.getElementById('step-register').scrollIntoView({ behavior: 'smooth' });
-      }, 300);
+        const target = document.querySelector(window.location.hash);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      }, 400);
     }
 
     async function register() {
