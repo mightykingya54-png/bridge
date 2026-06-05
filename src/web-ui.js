@@ -398,6 +398,15 @@ export function setupWebUI(app, BASE_URL) {
     msg.className = 'success';
     msg.textContent = '✅ Stripe connected! Connect PayPal below to start syncing.';
     loadDashboard();
+  } else if (params.get('error') === 'oauth_unavailable' && API_KEY) {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('error-configure').innerHTML =
+      '⚠️ One-click Stripe is not available yet (Connect setup pending). ' +
+      'Use <strong>▼ Advanced: Paste secret key</strong> below to connect manually.';
+    // Auto-expand the manual entry
+    document.getElementById('manual-stripe-section').style.display = 'block';
+    document.getElementById('toggle-manual-text').textContent = '▲ Hide manual entry';
   } else if (params.get('error') === 'oauth_denied' && API_KEY) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-configure').classList.add('active');
@@ -479,6 +488,8 @@ export function setupWebUI(app, BASE_URL) {
 
   // ── Stripe OAuth ──────────────────────────────────────────
   function connectStripe() {
+    // Navigate to OAuth start endpoint
+    // If OAuth is not configured, the server redirects back with ?error=oauth_unavailable
     window.location.href = API + '/api/stripe/oauth/start';
   }
 

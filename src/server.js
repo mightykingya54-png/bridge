@@ -562,7 +562,7 @@ app.get('/api/stripe/oauth/start', async (req, res) => {
 
     const clientId = config.stripe.clientId;
     if (!clientId) {
-      return res.status(500).json({ error: 'Stripe OAuth not configured. Contact support.' });
+      return res.redirect(`${BASE_URL}/app?error=oauth_unavailable`);
     }
 
     // Generate a random state token and store it linked to this merchant
