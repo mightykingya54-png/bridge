@@ -303,22 +303,19 @@ export function setupWebUI(app, BASE_URL) {
 
   <div class="card step-view" id="s-configure">
     <h2>Connect your accounts</h2>
-    <p>Bridge needs access to your payment processors. Start with Stripe — one click.</p>
+    <p>Paste your Stripe secret key. Bridge reads transactions only — <strong>read-only access</strong>.</p>
 
-    <!-- Stripe OAuth (primary) -->
-    <label>Stripe</label>
-    <button id="btn-stripe-oauth" onclick="connectStripe()" style="width:100%;padding:12px;font-size:15px;background:#635bff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-bottom:4px;">
-      🔗 Connect with Stripe
-    </button>
-    <p style="font-size:12px;color:#64748b;margin-bottom:14px;">One-click · Stripe handles auth · Read-only access</p>
+    <!-- Stripe key (primary) — always visible -->
+    <label>Stripe Secret Key</label>
+    <input type="password" id="stripe-key" placeholder="sk_live_... or sk_test_..." />
 
-    <!-- Manual Stripe fallback -->
-    <div onclick="toggleManualStripe()" style="cursor:pointer;color:#6366f1;font-size:13px;font-weight:600;text-align:center;margin:8px 0 14px;" id="toggle-manual-text">
-      ▼ Advanced: Paste secret key
+    <!-- OAuth secondary option -->
+    <div style="text-align:center;margin:6px 0 14px;">
+      <span onclick="toggleOauthInfo()" style="cursor:pointer;color:#6366f1;font-size:13px;font-weight:600;">▼ Use one-click Stripe auth instead</span>
     </div>
-    <div id="manual-stripe-section" style="display:none;">
-      <label>Stripe Secret Key</label>
-      <input type="password" id="stripe-key" placeholder="sk_live_..." />
+    <div id="oauth-info" style="display:none;text-align:center;font-size:13px;color:#64748b;margin-bottom:14px;">
+      <p style="margin-bottom:6px;">One-click Stripe is available for US-based Stripe accounts only.</p>
+      <button onclick="connectStripe()" style="background:#635bff;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">🔗 Connect with Stripe</button>
     </div>
 
     <label>PayPal Client ID</label>
@@ -342,11 +339,13 @@ export function setupWebUI(app, BASE_URL) {
     <!-- Stripe connect (shown when Stripe is not connected) -->
     <div id="stripe-connect-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
       <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect Stripe</p>
-      <p style="font-size:13px;color:#64748b;margin-bottom:10px;">One-click authorization. No API keys needed.</p>
-      <button onclick="connectStripe()" style="width:100%;padding:12px;font-size:15px;background:#635bff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
-        🔗 Connect with Stripe
+      <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Paste your Stripe secret key to connect.</p>
+      <input type="password" id="dash-stripe-key" placeholder="sk_live_... or sk_test_..." style="margin-bottom:8px;" />
+      <button onclick="dashConnectStripe()" style="width:100%;padding:12px;font-size:15px;background:#0f172a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+        Save Stripe Key
       </button>
       <div id="error-stripe-connect" class="error" style="margin-top:6px;"></div>
+      <div id="success-stripe-connect" class="success" style="margin-top:6px;"></div>
     </div>
 
     <!-- PayPal config (shown when Stripe is connected but PayPal is not) -->
@@ -416,11 +415,7 @@ export function setupWebUI(app, BASE_URL) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-configure').classList.add('active');
     document.getElementById('error-configure').innerHTML =
-      '⚠️ One-click Stripe is not available yet (Connect setup pending). ' +
-      'Use <strong>▼ Advanced: Paste secret key</strong> below to connect manually.';
-    // Auto-expand the manual entry
-    document.getElementById('manual-stripe-section').style.display = 'block';
-    document.getElementById('toggle-manual-text').textContent = '▲ Hide manual entry';
+      '⚠️ One-click Stripe is not available. Paste your Stripe secret key below instead.';
   } else if (params.get('error') === 'oauth_denied' && API_KEY) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-configure').classList.add('active');
@@ -507,12 +502,12 @@ export function setupWebUI(app, BASE_URL) {
     window.location.href = API + '/api/stripe/oauth/start?token=' + API_KEY;
   }
 
-  function toggleManualStripe() {
-    const section = document.getElementById('manual-stripe-section');
-    const text = document.getElementById('toggle-manual-text');
+  function toggleOauthInfo() {
+    const section = document.getElementById('oauth-info');
+    const link = document.querySelector('[onclick="toggleOauthInfo()"]');
     const hidden = section.style.display === 'none' || !section.style.display;
     section.style.display = hidden ? 'block' : 'none';
-    text.textContent = hidden ? '▲ Hide manual entry' : '▼ Advanced: Paste secret key';
+    link.textContent = hidden ? '▲ Hide one-click auth' : '▼ Use one-click Stripe auth instead';
   }
 
   // ── PayPal inline config (on dashboard) ──────────────────
@@ -593,6 +588,26 @@ export function setupWebUI(app, BASE_URL) {
       if (!r.ok) throw new Error(d.error);
       window.location.href = d.url;
     } catch (e) { document.getElementById('error-billing').textContent = e.message; }
+  }
+
+  async function dashConnectStripe() {
+    const key = document.getElementById('dash-stripe-key').value;
+    if (!key) { document.getElementById('error-stripe-connect').textContent = 'Enter your Stripe secret key'; return; }
+    document.getElementById('error-stripe-connect').textContent = '';
+    document.getElementById('success-stripe-connect').textContent = '';
+    try {
+      const r = await fetch(API + '/api/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+        body: JSON.stringify({ stripeKey: key }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to connect Stripe');
+      document.getElementById('success-stripe-connect').textContent = '✅ Stripe connected!';
+      loadDashboard();
+    } catch (e) {
+      document.getElementById('error-stripe-connect').textContent = e.message;
+    }
   }
 
   async function syncNow() {
