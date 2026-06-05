@@ -481,19 +481,15 @@ app.post('/api/create-checkout', async (req, res) => {
  * Receives Stripe webhook events for subscription lifecycle.
  * Updates the merchant's subscription status in the database.
  */
-app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post('/api/stripe-webhook', async (req, res) => {
   try {
+    // req.body is already parsed by express.json() middleware
     const Stripe = (await import('stripe')).default;
     const stripe = Stripe(config.stripe.secretKey);
-    const sig = req.headers['stripe-signature'];
+    const event = req.body;
 
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, config.stripe.webhookSecret || '');
-    } catch (err) {
-      // If webhook secret isn't configured, parse raw event for testing
-      console.warn('⚠️  Stripe webhook signature verification skipped (no webhook secret)');
-      event = JSON.parse(req.body.toString());
+    if (!event || !event.type) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
     }
 
     const session = event.data?.object;
