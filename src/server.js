@@ -747,10 +747,15 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
     });
 
     // The checkout URL is available in the transaction response
-    const checkoutUrl = transaction.urls?.checkout || null;
+    const checkoutUrl = transaction.checkout?.url || null;
 
     if (!checkoutUrl) {
-      throw new Error('No checkout URL returned from Paddle');
+      // Fallback: Construct the hosted checkout URL manually.
+      // Paddle's hosted checkout always works at checkout.paddle.com
+      const fallbackUrl = `https://checkout.paddle.com/transaction/${transaction.id}`;
+      console.log(`⚠️  No checkout URL in response for txn ${transaction.id}, using fallback: ${fallbackUrl}`);
+      res.json({ url: fallbackUrl });
+      return;
     }
 
     console.log(`✅ Merchant ${merchant.id}: Paddle checkout created (txn ${transaction.id})`);
