@@ -355,7 +355,7 @@ export function setupWebUI(app, BASE_URL) {
       <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect Stripe</p>
       <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Paste your Stripe secret key to connect.</p>
       <input type="password" id="dash-stripe-key" placeholder="sk_live_... or sk_test_..." style="margin-bottom:8px;" />
-      <button onclick="dashConnectStripe()" style="width:100%;padding:12px;font-size:15px;background:#0f172a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+      <button id="btn-dash-stripe" onclick="dashConnectStripe()" style="width:100%;padding:12px;font-size:15px;background:#0f172a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
         Save Stripe Key
       </button>
       <div id="error-stripe-connect" class="error" style="margin-top:6px;"></div>
@@ -370,7 +370,7 @@ export function setupWebUI(app, BASE_URL) {
       <input type="text" id="dash-paypal-id" placeholder="A..." />
       <label>PayPal Client Secret</label>
       <input type="password" id="dash-paypal-secret" placeholder="E..." />
-      <button onclick="configurePaypal()">Save PayPal</button>
+      <button id="btn-dash-paypal" onclick="configurePaypal()">Save PayPal</button>
       <div id="error-paypal" class="error" style="margin-top:6px;"></div>
       <div id="success-paypal" class="success" style="margin-top:6px;"></div>
     </div>
@@ -472,7 +472,7 @@ export function setupWebUI(app, BASE_URL) {
   }
 
   async function register() {
-    document.getElementById('btn-register').disabled = true;
+    setLoading('btn-register', true);
     document.getElementById('error-register').textContent = '';
     try {
       const r = await fetch(API + '/api/register', {
@@ -492,7 +492,7 @@ export function setupWebUI(app, BASE_URL) {
     } catch (e) {
       document.getElementById('error-register').textContent = e.message;
     } finally {
-      document.getElementById('btn-register').disabled = false;
+      setLoading('btn-register', false);
     }
   }
 
@@ -506,7 +506,7 @@ export function setupWebUI(app, BASE_URL) {
     const sk = document.getElementById('stripe-key').value;
     const pc = document.getElementById('paypal-client-id').value;
     const ps = document.getElementById('paypal-client-secret').value;
-    document.getElementById('btn-configure').disabled = true;
+    setLoading('btn-configure', true);
     document.getElementById('error-configure').textContent = '';
     document.getElementById('success-configure').textContent = '';
     try {
@@ -526,12 +526,17 @@ export function setupWebUI(app, BASE_URL) {
         document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
         document.getElementById('s-dashboard').classList.add('active');
         document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
+        setLoading('btn-configure', false);
         loadDashboard();
       }, 800);
+      return; // skip the finally restore (timeout handles it)
     } catch (e) {
       document.getElementById('error-configure').textContent = e.message;
     } finally {
-      document.getElementById('btn-configure').disabled = false;
+      // Only restore if we didn't hit the success path (which returns early)
+      if (!document.getElementById('success-configure').textContent) {
+        setLoading('btn-configure', false);
+      }
     }
   }
 
@@ -555,6 +560,7 @@ export function setupWebUI(app, BASE_URL) {
     const id = document.getElementById('dash-paypal-id').value;
     const secret = document.getElementById('dash-paypal-secret').value;
     if (!id || !secret) { document.getElementById('error-paypal').textContent = 'Fill in both PayPal fields'; return; }
+    setLoading('btn-dash-paypal', true);
     document.getElementById('error-paypal').textContent = '';
     document.getElementById('success-paypal').textContent = '';
     try {
@@ -566,9 +572,11 @@ export function setupWebUI(app, BASE_URL) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Configuration failed');
       document.getElementById('success-paypal').textContent = '✅ PayPal connected!';
+      setLoading('btn-dash-paypal', false);
       loadDashboard();
     } catch (e) {
       document.getElementById('error-paypal').textContent = e.message;
+      setLoading('btn-dash-paypal', false);
     }
   }
 
@@ -625,13 +633,13 @@ export function setupWebUI(app, BASE_URL) {
 
   async function subscribe() {
     document.getElementById('error-billing').textContent = '';
-    document.getElementById('btn-subscribe').disabled = true;
+    setLoading('btn-subscribe', true);
     try {
       const r = await fetch(API + '/api/create-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       window.location.href = d.url;
-    } catch (e) { document.getElementById('error-billing').textContent = e.message; document.getElementById('btn-subscribe').disabled = false; }
+    } catch (e) { document.getElementById('error-billing').textContent = e.message; setLoading('btn-subscribe', false); }
   }
 
   async function manageBilling() {
@@ -647,6 +655,7 @@ export function setupWebUI(app, BASE_URL) {
   async function dashConnectStripe() {
     const key = document.getElementById('dash-stripe-key').value;
     if (!key) { document.getElementById('error-stripe-connect').textContent = 'Enter your Stripe secret key'; return; }
+    setLoading('btn-dash-stripe', true);
     document.getElementById('error-stripe-connect').textContent = '';
     document.getElementById('success-stripe-connect').textContent = '';
     try {
@@ -658,25 +667,27 @@ export function setupWebUI(app, BASE_URL) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed to connect Stripe');
       document.getElementById('success-stripe-connect').textContent = '✅ Stripe connected!';
+      setLoading('btn-dash-stripe', false);
       loadDashboard();
     } catch (e) {
       document.getElementById('error-stripe-connect').textContent = e.message;
+      setLoading('btn-dash-stripe', false);
     }
   }
 
   async function syncNow() {
-    document.getElementById('btn-sync').disabled = true;
+    setLoading('btn-sync', true);
     document.getElementById('error-sync').textContent = '';
     document.getElementById('success-sync').textContent = '';
     try {
       const r = await fetch(API + '/api/sync', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
-      if (r.status === 402) { document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required'); loadDashboard(); return; }
+      if (r.status === 402) { document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required'); setLoading('btn-sync', false); loadDashboard(); return; }
       if (!r.ok) throw new Error(d.error);
       document.getElementById('success-sync').textContent = '✅ Synced! ' + d.pushed + ' pushed, ' + d.skipped + ' skipped';
+      setLoading('btn-sync', false);
       loadDashboard();
-    } catch (e) { document.getElementById('error-sync').textContent = e.message; }
-    finally { document.getElementById('btn-sync').disabled = false; }
+    } catch (e) { document.getElementById('error-sync').textContent = e.message; setLoading('btn-sync', false); }
   }
 
   function resetAll() {
@@ -689,6 +700,19 @@ export function setupWebUI(app, BASE_URL) {
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (loading) {
+      btn.dataset.original = btn.textContent;
+      btn.textContent = '⏳ Loading...';
+      btn.disabled = true;
+    } else {
+      btn.textContent = btn.dataset.original || btn.textContent;
+      btn.disabled = false;
+    }
   }
 </script>
 </body>
