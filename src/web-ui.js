@@ -344,6 +344,11 @@ export function setupWebUI(app, BASE_URL) {
     <button id="btn-sync" onclick="syncNow()" style="margin-top:4px;">Sync now</button>
     <div id="error-sync" class="error" style="margin-top:8px;"></div>
     <div id="success-sync" class="success" style="margin-top:8px;"></div>
+    <div id="sync-errors-banner" style="display:none;margin-top:8px;padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:13px;">
+      <strong style="color:#991b1b;">⚠️ Sync errors detected</strong>
+      <div id="sync-errors-content" style="color:#7f1d1d;margin-top:4px;"></div>
+      <button onclick="syncNow()" style="margin-top:6px;padding:6px 16px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">Retry sync</button>
+    </div>
 
     <!-- Stripe connect (shown when Stripe is not connected) -->
     <div id="stripe-connect-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
@@ -578,6 +583,20 @@ export function setupWebUI(app, BASE_URL) {
       if (d.sync) {
         document.getElementById('sync-count').textContent = d.sync.totalSynced || 0;
         document.getElementById('sync-time').textContent = d.sync.lastSyncAt ? new Date(d.sync.lastSyncAt).toLocaleDateString() : 'Never';
+
+        // Show error banner if there are recent sync errors
+        const errorBanner = document.getElementById('sync-errors-banner');
+        const errorContent = document.getElementById('sync-errors-content');
+        if (d.sync.errors && d.sync.errors.length > 0) {
+          const err = d.sync.errors[0];
+          const time = err.time ? new Date(err.time).toLocaleString() : 'recently';
+          errorContent.innerHTML = d.sync.errors.length === 1
+            ? `Last sync failed: <code>${escapeHtml(err.error)}</code> (${time})`
+            : `${d.sync.errors.length} errors since last successful sync. Latest: <code>${escapeHtml(err.error)}</code> (${time})`;
+          errorBanner.style.display = 'block';
+        } else {
+          errorBanner.style.display = 'none';
+        }
       }
       // Show Stripe connect section when Stripe is not connected
       const stripeSection = document.getElementById('stripe-connect-section');
@@ -665,6 +684,11 @@ export function setupWebUI(app, BASE_URL) {
     if (!confirm('This cannot be undone. Your configured credentials will be lost.')) return;
     localStorage.removeItem('bridge_api_key');
     location.reload();
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
 </body>
