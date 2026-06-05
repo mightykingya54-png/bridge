@@ -2,7 +2,7 @@
  * Web UI — Landing page + setup wizard.
  * Core principle: every visitor must understand what Bridge does in ≤ 3 seconds.
  */
-export function setupWebUI(app, BASE_URL) {
+export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   app.get('/app', (req, res) => {
     res.set('Cache-Control', 'no-store, must-revalidate');
     res.send(`<!DOCTYPE html>
@@ -403,6 +403,12 @@ export function setupWebUI(app, BASE_URL) {
   const API = '${BASE_URL}';
   let API_KEY = localStorage.getItem('bridge_api_key') || '';
 
+  // Initialize Paddle.js with client-side token
+  const PADDLE_TOKEN = ${JSON.stringify(PADDLE_CLIENT_TOKEN)};
+  if (typeof Paddle !== 'undefined' && PADDLE_TOKEN) {
+    Paddle.Initialize({ token: PADDLE_TOKEN });
+  }
+
   // Smooth scroll for anchor links
   document.querySelectorAll('a[href^="#"]').forEach(a => {
     a.addEventListener('click', function(e) {
@@ -648,19 +654,25 @@ export function setupWebUI(app, BASE_URL) {
       const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      if (d.url) {
-        // Redirect to checkout URL (our domain + ?_ptxn=txn_id)
-        // Paddle.js on that page auto-opens the overlay
-        window.location.href = d.url;
-        return;
-      } else if (d.transactionId) {
-        // No checkout URL (domain pending approval) — try overlay directly
+      if (d.transactionId) {
+        // Open Paddle checkout overlay
         if (typeof Paddle !== 'undefined' && Paddle.Checkout) {
-          Paddle.Checkout.open({ transactionId: d.transactionId });
-          setLoading('btn-subscribe', false);
+          await Paddle.Checkout.open({
+            transactionId: d.transactionId,
+            settings: {
+              displayMode: 'overlay',
+              theme: 'light',
+            },
+            onCompleted: function() {
+              // Refresh subscription status after checkout
+              loadDashboard();
+            },
+          });
         } else {
           throw new Error('Paddle.js not loaded. Please refresh and try again.');
         }
+      } else if (d.url) {
+        window.location.href = d.url;
       } else if (d.active) {
         document.getElementById('error-billing').textContent = 'Already subscribed.';
       }

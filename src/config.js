@@ -30,6 +30,7 @@ export const config = {
     apiKey: process.env.PADDLE_API_KEY || '',
     priceId: process.env.PADDLE_PRICE_ID || '',
     webhookSecret: process.env.PADDLE_WEBHOOK_SECRET || '',
+    clientToken: process.env.PADDLE_CLIENT_TOKEN || '',
   },
   port: parseInt(process.env.PORT || '3000', 10),
   databaseUrl: process.env.DATABASE_URL || '',

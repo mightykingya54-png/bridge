@@ -746,20 +746,9 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       },
     });
 
-    // The checkout URL is our own domain + ?_ptxn=txn_id
-    // Paddle.js on the landing page detects this param and auto-opens the overlay
-    const checkoutUrl = transaction.checkout?.url || null;
-
-    if (!checkoutUrl) {
-      // If no checkout URL (domain not yet approved), return the transaction ID
-      // and the frontend will use Paddle.Checkout.open({ transactionId })
-      console.log(`⚠️  No checkout URL for txn ${transaction.id}, returning transactionId for overlay`);
-      res.json({ transactionId: transaction.id });
-      return;
-    }
-
+    // Return the transaction ID — frontend uses Paddle.Checkout.open() to show overlay
     console.log(`✅ Merchant ${merchant.id}: Paddle checkout created (txn ${transaction.id})`);
-    res.json({ url: checkoutUrl });
+    res.json({ transactionId: transaction.id });
   } catch (err) {
     res.status(500).json({ error: `Checkout error: ${err.message}` });
   }
@@ -857,7 +846,7 @@ app.post('/api/paddle-webhook', async (req, res) => {
 const BASE_URL = config.stripe.secretKey
   ? 'https://bridge-production-ad61.up.railway.app'
   : `http://0.0.0.0:${PORT}`;
-setupWebUI(app, BASE_URL);
+setupWebUI(app, BASE_URL, config.paddle.clientToken);
 
 // ── Start server ────────────────────────────────────────────────
 const PORT = 8080;
