@@ -30,7 +30,7 @@ export function setupWebUI(app, BASE_URL) {
     p { color: #425466; margin-bottom: 12px; font-size: 15px; line-height: 1.6; }
     .steps { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 20px 0; }
     .step-number { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 6px 16px; font-size: 13px; color: #d0d0ff; }
-    .btn-cta { display: inline-block; background: #635bff; color: white; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; margin-top: 16px; transition: background 0.15s; }
+    .btn-cta { display: inline-block; background: #635bff; color: white; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; margin-top: 16px; transition: background 0.15s; font-family: inherit; line-height: 1.2; }
     .btn-cta:hover { background: #4e46e5; }
     .btn-cta-secondary { display: inline-block; background: transparent; color: #635bff; border: 1px solid #635bff; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; margin-top: 16px; margin-left: 8px; }
     .btn-cta-secondary:hover { background: #f0eeff; }
@@ -86,7 +86,7 @@ export function setupWebUI(app, BASE_URL) {
       </div>
       <div class="pricing-tag">7-day free trial · $49/month · Cancel anytime</div>
       <div>
-        <a href="#setup" class="btn-cta" onclick="event.preventDefault();document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Get Started Free</a>
+        <button class="btn-cta" onclick="document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Get Started Free</button>
       </div>
     </div>
 
@@ -122,7 +122,7 @@ export function setupWebUI(app, BASE_URL) {
           Automatic daily syncs<br/>
           Cancel anytime — no lock-in
         </div>
-        <a href="#setup" class="btn-cta" onclick="event.preventDefault();document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Start 7-Day Free Trial</a>
+        <button class="btn-cta" onclick="document.getElementById('step-register').scrollIntoView({behavior:'smooth'})">Start 7-Day Free Trial</button>
         <p style="font-size:13px;color:#8898aa;margin-top:12px;margin-bottom:0">No credit card required to start.</p>
       </div>
     </div>
