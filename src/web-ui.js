@@ -381,7 +381,7 @@ export function setupWebUI(app, BASE_URL) {
   </div>
 </div>
 
-<div class="footer">🌉 Bridge · Built by Yashoraj · <a href="${BASE_URL}">Home</a></div>
+<div class="footer">🌉 Bridge · <a href="${BASE_URL}">Home</a></div>
 </div>
 
 <script>
