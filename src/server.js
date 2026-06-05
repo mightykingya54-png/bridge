@@ -44,14 +44,13 @@ async function authRequired(req, res, next) {
     if (req.path === '/' && req.method === 'GET') return next();
     if (req.path === '/app') return next();
 
-    // Allow GET requests without auth (old UI compatibility)
-    if (req.method === 'GET') return next();
-
-    // POST endpoints require API key
+    // Parse API key from Authorization header (for any method)
     const authHeader = req.headers.authorization || '';
     const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
 
+    // No API key provided — allow through for GET requests (handlers will show unauthenticated state)
     if (!apiKey) {
+      if (req.method === 'GET') return next();
       return res.status(401).json({ error: 'Missing Authorization header. Use: Bearer <your_api_key>' });
     }
 
@@ -64,6 +63,8 @@ async function authRequired(req, res, next) {
 
     const merchant = await getMerchantByApiKey(apiKey);
     if (!merchant) {
+      // Allow GET through without auth (handlers will show unauthenticated state)
+      if (req.method === 'GET') return next();
       return res.status(401).json({ error: 'Invalid API key. Register at POST /api/register first.' });
     }
 
@@ -405,12 +406,19 @@ setupWebUI(app, BASE_URL);
 const PORT = 8080;
 
 async function start() {
-  // Initialize database schema
-  await initDatabase();
+  if (!config.databaseUrl) {
+    console.warn('⚠️  DATABASE_URL not set. Waiting for PostgreSQL plugin...');
+    console.warn('   Go to Railway dashboard → Project → Plugins → Add PostgreSQL');
+    console.warn('   Server will not handle requests until DATABASE_URL is configured.');
+    console.warn('   For now, start the server, add PostgreSQL in Railway UI, and redeploy.\n');
+  } else {
+    // Initialize database schema
+    await initDatabase();
+  }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🌉 Bridge API server running on http://0.0.0.0:${PORT}`);
-    console.log(`   Database: PostgreSQL`);
+    console.log(`   Database: ${config.databaseUrl ? '✅ PostgreSQL' : '❌ NOT CONFIGURED'}`);
     console.log(`   Multi-tenant: enabled`);
     console.log(`   Master key: ${config.masterKey ? '✅ configured' : '❌ not set'}`);
     console.log(`   Scheduler: active (${scheduler.schedule})`);
