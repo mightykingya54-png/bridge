@@ -339,7 +339,17 @@ export function setupWebUI(app, BASE_URL) {
     <div id="error-sync" class="error" style="margin-top:8px;"></div>
     <div id="success-sync" class="success" style="margin-top:8px;"></div>
 
-    <!-- PayPal config (shown when PayPal is not connected) -->
+    <!-- Stripe connect (shown when Stripe is not connected) -->
+    <div id="stripe-connect-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
+      <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect Stripe</p>
+      <p style="font-size:13px;color:#64748b;margin-bottom:10px;">One-click authorization. No API keys needed.</p>
+      <button onclick="connectStripe()" style="width:100%;padding:12px;font-size:15px;background:#635bff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
+        🔗 Connect with Stripe
+      </button>
+      <div id="error-stripe-connect" class="error" style="margin-top:6px;"></div>
+    </div>
+
+    <!-- PayPal config (shown when Stripe is connected but PayPal is not) -->
     <div id="paypal-config-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
       <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect PayPal</p>
       <p style="font-size:13px;color:#64748b;margin-bottom:10px;">You'll need your PayPal API credentials.</p>
@@ -535,13 +545,13 @@ export function setupWebUI(app, BASE_URL) {
         document.getElementById('sync-count').textContent = d.sync.totalSynced || 0;
         document.getElementById('sync-time').textContent = d.sync.lastSyncAt ? new Date(d.sync.lastSyncAt).toLocaleDateString() : 'Never';
       }
-      // Show PayPal config card only when Stripe is connected but PayPal is not
+      // Show Stripe connect section when Stripe is not connected
+      const stripeSection = document.getElementById('stripe-connect-section');
+      stripeSection.style.display = d.stripe?.connected ? 'none' : 'block';
+
+      // Show PayPal config section only when Stripe is connected but PayPal is not
       const paypalSection = document.getElementById('paypal-config-section');
-      if (d.stripe?.connected && !d.paypal?.connected) {
-        paypalSection.style.display = 'block';
-      } else {
-        paypalSection.style.display = 'none';
-      }
+      paypalSection.style.display = (d.stripe?.connected && !d.paypal?.connected) ? 'block' : 'none';
     } catch (e) { console.error(e); }
 
     try {
