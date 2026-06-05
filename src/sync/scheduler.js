@@ -12,6 +12,7 @@ import {
   isAlreadySynced,
   markSynced,
   addSyncError,
+  canSync,
 } from './state.js';
 
 const DEFAULT_SCHEDULE = '0 6 * * *';
@@ -44,8 +45,17 @@ export function startScheduler(callbacks = {}) {
     let totalPushed = 0;
     let totalSkipped = 0;
     let totalErrors = 0;
+    let totalSkippedExpired = 0;
 
     for (const merchant of merchants) {
+      // Skip merchants whose trial has expired or subscription is inactive
+      const { allowed } = await canSync(merchant.id);
+      if (!allowed) {
+        console.log(`   ⏭️  Merchant ${merchant.id}: subscription inactive — skipping`);
+        totalSkippedExpired++;
+        continue;
+      }
+
       console.log(`   Sync for merchant ${merchant.id} (${merchant.display_name || 'unnamed'})...`);
       try {
         const result = await runMerchantSync(merchant);
@@ -59,8 +69,9 @@ export function startScheduler(callbacks = {}) {
       }
     }
 
-    console.log(`⏰ Sync complete: ${totalPushed} pushed, ${totalSkipped} skipped, ${totalErrors} errors across ${merchants.length} merchants`);
-    callbacks.onSyncComplete?.({ pushed: totalPushed, skipped: totalSkipped, errors: totalErrors });
+    const expiredLabel = totalSkippedExpired > 0 ? `, ${totalSkippedExpired} expired (skipped)` : '';
+    console.log(`⏰ Sync complete: ${totalPushed} pushed, ${totalSkipped} skipped, ${totalErrors} errors across ${merchants.length} merchants${expiredLabel}`);
+    callbacks.onSyncComplete?.({ pushed: totalPushed, skipped: totalSkipped, errors: totalErrors, expired: totalSkippedExpired });
   });
 
   return {
