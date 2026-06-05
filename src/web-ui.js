@@ -416,9 +416,17 @@ export function setupWebUI(app, BASE_URL) {
     }, 300);
   }
 
-  // Handle OAuth redirect params
+  // Handle checkout redirect params
   const params = new URLSearchParams(window.location.search);
-  if (params.get('oauth') === 'success' && API_KEY) {
+  if (params.get('checkout') === 'success' && API_KEY) {
+    // Checkout completed — show dashboard and reload subscription status
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-dashboard').classList.add('active');
+    document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
+    loadDashboard();
+    // Clean up URL param
+    window.history.replaceState({}, document.title, '/app');
+  } else if (params.get('oauth') === 'success' && API_KEY) {
     // OAuth success — show dashboard with Stripe connected
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
@@ -622,7 +630,7 @@ export function setupWebUI(app, BASE_URL) {
       const se = document.getElementById('sub-status'), sd = document.getElementById('sub-detail'), sb = document.getElementById('btn-subscribe'), sm = document.getElementById('btn-manage');
       if (sub.active) {
         se.textContent = '✅ Active'; se.className = 'badge badge-ok';
-        if (sub.stripeSubscriptionId) { sd.textContent = 'Subscribed'; sb.style.display = 'none'; sm.style.display = 'inline-block'; }
+        if (sub.stripeSubscriptionId || sub.paddleSubscriptionId) { sd.textContent = 'Subscribed (via ' + (sub.billingProvider || '') + ')'; sb.style.display = 'none'; sm.style.display = 'inline-block'; }
         else { sd.textContent = 'Trial ends ' + new Date(sub.trialEnd).toLocaleDateString(); sb.style.display = 'inline-block'; sm.style.display = 'none'; }
       } else {
         se.textContent = '⚠️ Expired'; se.className = 'badge badge-no';
@@ -635,20 +643,23 @@ export function setupWebUI(app, BASE_URL) {
     document.getElementById('error-billing').textContent = '';
     setLoading('btn-subscribe', true);
     try {
-      const r = await fetch(API + '/api/create-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
+      const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      window.location.href = d.url;
+      if (d.url) window.location.href = d.url;
+      else if (d.active) document.getElementById('error-billing').textContent = 'Already subscribed.';
+      setLoading('btn-subscribe', false);
     } catch (e) { document.getElementById('error-billing').textContent = e.message; setLoading('btn-subscribe', false); }
   }
 
   async function manageBilling() {
     document.getElementById('error-billing').textContent = '';
     try {
-      const r = await fetch(API + '/api/create-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
+      const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      window.location.href = d.url;
+      if (d.url) window.location.href = d.url;
+      else document.getElementById('error-billing').textContent = 'Unable to open billing portal. Contact support.';
     } catch (e) { document.getElementById('error-billing').textContent = e.message; }
   }
 

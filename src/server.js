@@ -21,6 +21,7 @@ import {
   getMerchantByApiKey,
   getMerchantBySubscriptionId,
   getMerchantByStripeAccountId,
+  getMerchantByPaddleSubscriptionId,
   updateMerchantCredentials,
   getAllMerchants,
   getState,
@@ -67,11 +68,12 @@ app.use('/api/sync', apiLimiter);
 // auth for the Stripe App UI to show before registration.
 async function authRequired(req, res, next) {
   try {
-    // Skip auth for register, root status, web UI, Stripe webhook, and OAuth callback
+    // Skip auth for register, root status, web UI, webhooks, and OAuth callback
     if (req.path === '/api/register' && req.method === 'POST') return next();
     if (req.path === '/' && req.method === 'GET') return next();
     if (req.path === '/app') return next();
     if (req.path === '/api/stripe-webhook') return next();
+    if (req.path === '/api/paddle-webhook') return next();
     if (req.path === '/api/stripe/oauth/callback') return next();
 
     // Parse API key from Authorization header (for any method)
@@ -696,6 +698,153 @@ app.get('/api/stripe/oauth/callback', async (req, res) => {
   } catch (err) {
     console.error('❌ OAuth callback error:', err.message);
     res.redirect(`${BASE_URL}/app?error=oauth_failed&detail=${encodeURIComponent(err.message)}`);
+  }
+});
+
+// ── Paddle Billing ─────────────────────────────────────────────
+
+/**
+ * POST /api/create-paddle-checkout
+ * Creates a Paddle transaction for a monthly subscription.
+ * Returns the checkout URL to redirect the user to.
+ */
+app.post('/api/create-paddle-checkout', async (req, res) => {
+  try {
+    if (!req.merchant) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    const { Paddle } = await import('@paddle/paddle-node-sdk');
+    const paddle = new Paddle(config.paddle.apiKey);
+
+    const merchant = req.merchant;
+    const sub = await getSubscription(merchant.id);
+
+    // If already subscribed with a valid Paddle subscription, create a customer portal session
+    if (sub.active && sub.paddleSubscriptionId) {
+      try {
+        const portalSession = await paddle.customerPortalSessions.create({
+          subscriptionIds: [sub.paddleSubscriptionId],
+        });
+        const portalUrl = portalSession.urls?.general?.url || null;
+        if (portalUrl) {
+          return res.json({ url: portalUrl });
+        }
+      } catch (portalErr) {
+        console.warn(`⚠️  Could not create Paddle portal for ${merchant.id}: ${portalErr.message}`);
+      }
+      // Fallback: just confirm they're already subscribed
+      return res.json({ message: 'Already subscribed', active: true });
+    }
+
+    // Create a transaction with our monthly price
+    const transaction = await paddle.transactions.create({
+      items: [{ priceId: config.paddle.priceId, quantity: 1 }],
+      customData: { merchant_id: merchant.id },
+      checkout: {
+        url: `${BASE_URL}/app?checkout=success`,
+      },
+    });
+
+    // The checkout URL is available in the transaction response
+    const checkoutUrl = transaction.urls?.checkout || null;
+
+    if (!checkoutUrl) {
+      throw new Error('No checkout URL returned from Paddle');
+    }
+
+    console.log(`✅ Merchant ${merchant.id}: Paddle checkout created (txn ${transaction.id})`);
+    res.json({ url: checkoutUrl });
+  } catch (err) {
+    res.status(500).json({ error: `Checkout error: ${err.message}` });
+  }
+});
+
+/**
+ * POST /api/paddle-webhook
+ * Receives Paddle webhook events for subscription lifecycle.
+ * Updates the merchant's subscription status in the database.
+ */
+app.post('/api/paddle-webhook', async (req, res) => {
+  try {
+    const { Paddle } = await import('@paddle/paddle-node-sdk');
+    const paddle = new Paddle(config.paddle.apiKey);
+
+    // Verify webhook signature if secret is configured
+    if (config.paddle.webhookSecret && req.headers['paddle-signature']) {
+      const rawBody = req.rawBody || JSON.stringify(req.body);
+      const isValid = await paddle.webhooks.isSignatureValid(
+        rawBody,
+        config.paddle.webhookSecret,
+        req.headers['paddle-signature']
+      );
+      if (!isValid) {
+        console.warn('⚠️  Invalid Paddle webhook signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    }
+
+    const event = req.body;
+    if (!event || !event.event_type) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+
+    const data = event.data || {};
+    console.log(`📬 Paddle webhook: ${event.event_type} (${data.id})`);
+
+    switch (event.event_type) {
+      case 'subscription.created': {
+        // Find merchant by custom_data.merchant_id (set during checkout)
+        const merchantId = data.custom_data?.merchant_id;
+        if (merchantId) {
+          await updateSubscription(merchantId, {
+            paddleCustomerId: data.customer_id || null,
+            paddleSubscriptionId: data.id,
+            status: data.status || 'active',
+            tier: 'monthly',
+          });
+          console.log(`✅ Merchant ${merchantId}: Paddle subscribed (sub ${data.id})`);
+        } else {
+          console.warn('⚠️  subscription.created has no merchant_id in custom_data');
+        }
+        break;
+      }
+
+      case 'subscription.updated': {
+        // Find merchant by paddle_subscription_id
+        const merchant = await getMerchantByPaddleSubscriptionId(data.id);
+        if (merchant) {
+          const status = data.status || 'active';
+          await updateSubscription(merchant.id, { status });
+          console.log(`ℹ️  Merchant ${merchant.id}: Paddle subscription ${status}`);
+        }
+        break;
+      }
+
+      case 'subscription.cancelled': {
+        const cancelledMerchant = await getMerchantByPaddleSubscriptionId(data.id);
+        if (cancelledMerchant) {
+          await updateSubscription(cancelledMerchant.id, { status: 'canceled' });
+          console.log(`ℹ️  Merchant ${cancelledMerchant.id}: Paddle subscription cancelled`);
+        }
+        break;
+      }
+
+      case 'transaction.completed': {
+        // Optionally track first payment or trial start
+        const txnMerchantId = data.custom_data?.merchant_id;
+        if (txnMerchantId && !data.billing_period) {
+          // This is the initial transaction (not a renewal)
+          console.log(`ℹ️  Merchant ${txnMerchantId}: initial Paddle transaction completed`);
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('❌ Paddle webhook error:', err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 

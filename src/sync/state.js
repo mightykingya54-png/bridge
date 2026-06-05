@@ -170,6 +170,8 @@ export async function initDatabase() {
   try {
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS paddle_customer_id TEXT DEFAULT ''`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS paddle_subscription_id TEXT DEFAULT ''`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial'`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free'`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS trial_end_at TIMESTAMP`);
@@ -307,15 +309,18 @@ export async function updateMerchantCredentials(id, credentials) {
 // ── Subscription / Billing ──────────────────────────────────────
 
 /**
- * Update a merchant's subscription details after Stripe checkout/webhook.
+ * Update a merchant's subscription details after checkout/webhook.
+ * Supports Stripe and Paddle subscription fields.
  */
-export async function updateSubscription(merchantId, { stripeCustomerId, stripeSubscriptionId, status, tier }) {
+export async function updateSubscription(merchantId, { stripeCustomerId, stripeSubscriptionId, paddleCustomerId, paddleSubscriptionId, status, tier }) {
   const fields = [];
   const values = [];
   let idx = 1;
 
   if (stripeCustomerId) { fields.push(`stripe_customer_id = $${idx}`); values.push(stripeCustomerId); idx++; }
   if (stripeSubscriptionId) { fields.push(`stripe_subscription_id = $${idx}`); values.push(stripeSubscriptionId); idx++; }
+  if (paddleCustomerId) { fields.push(`paddle_customer_id = $${idx}`); values.push(paddleCustomerId); idx++; }
+  if (paddleSubscriptionId) { fields.push(`paddle_subscription_id = $${idx}`); values.push(paddleSubscriptionId); idx++; }
   if (status) { fields.push(`subscription_status = $${idx}`); values.push(status); idx++; }
   if (tier) { fields.push(`subscription_tier = $${idx}`); values.push(tier); idx++; }
 
@@ -329,10 +334,12 @@ export async function updateSubscription(merchantId, { stripeCustomerId, stripeS
 
 /**
  * Get subscription summary for a merchant.
+ * Supports Stripe and Paddle billing providers.
  */
 export async function getSubscription(merchantId) {
   const { rows } = await query(
-    `SELECT stripe_customer_id, stripe_subscription_id, subscription_status, subscription_tier, trial_end_at, created_at
+    `SELECT stripe_customer_id, stripe_subscription_id, paddle_customer_id, paddle_subscription_id,
+            subscription_status, subscription_tier, trial_end_at, created_at
      FROM merchants WHERE id = $1`,
     [merchantId]
   );
@@ -347,9 +354,15 @@ export async function getSubscription(merchantId) {
   const effectiveTrialEnd = trialEnd || new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
   const trialActive = now < effectiveTrialEnd;
 
+  const hasStripeSub = !!sub.stripe_subscription_id;
+  const hasPaddleSub = !!sub.paddle_subscription_id;
+
   return {
     stripeCustomerId: sub.stripe_customer_id || null,
     stripeSubscriptionId: sub.stripe_subscription_id || null,
+    paddleCustomerId: sub.paddle_customer_id || null,
+    paddleSubscriptionId: sub.paddle_subscription_id || null,
+    billingProvider: hasPaddleSub ? 'paddle' : (hasStripeSub ? 'stripe' : 'none'),
     status: sub.subscription_status || 'trial',
     tier: sub.subscription_tier || 'free',
     trialEnd: effectiveTrialEnd.toISOString(),
@@ -423,6 +436,14 @@ export async function countSyncedTransactions(merchantId) {
  */
 export async function getMerchantBySubscriptionId(subscriptionId) {
   const { rows } = await query('SELECT * FROM merchants WHERE stripe_subscription_id = $1', [subscriptionId]);
+  return decryptMerchant(rows[0] || null);
+}
+
+/**
+ * Find a merchant by Paddle subscription ID.
+ */
+export async function getMerchantByPaddleSubscriptionId(subscriptionId) {
+  const { rows } = await query('SELECT * FROM merchants WHERE paddle_subscription_id = $1', [subscriptionId]);
   return decryptMerchant(rows[0] || null);
 }
 
