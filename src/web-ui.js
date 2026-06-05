@@ -667,8 +667,18 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
                 theme: 'light',
               },
             });
-            // Checkout completed successfully — refresh subscription status
+            // Checkout completed — poll for subscription status (webhook may be delayed)
             loadDashboard();
+            // Poll up to 15s for subscription to become active
+            for (let i = 0; i < 15; i++) {
+              await new Promise(r => setTimeout(r, 1000));
+              const subR = await fetch(API + '/api/subscription', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
+              const subD = await subR.json();
+              if (subD.active && (subD.stripeSubscriptionId || subD.paddleSubscriptionId)) {
+                loadDashboard();
+                break;
+              }
+            }
           } catch (checkoutErr) {
             // User closed or checkout failed — silently handle
             loadDashboard();

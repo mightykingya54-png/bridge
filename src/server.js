@@ -600,15 +600,14 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required.' });
     }
 
-    const { Paddle } = await import('@paddle/paddle-node-sdk');
-    const paddle = new Paddle(config.paddle.apiKey);
-
     const merchant = req.merchant;
     const sub = await getSubscription(merchant.id);
 
     // If already subscribed with a valid Paddle subscription, create a customer portal session
     if (sub.active && sub.paddleSubscriptionId) {
       try {
+        const { Paddle } = await import('@paddle/paddle-node-sdk');
+        const paddle = new Paddle(config.paddle.apiKey);
         const portalSession = await paddle.customerPortalSessions.create({
           subscriptionIds: [sub.paddleSubscriptionId],
         });
