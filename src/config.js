@@ -30,4 +30,8 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || '',
   /** Master API key for the server operator. Optional — used for admin/debug. */
   masterKey: process.env.MASTER_API_KEY || '',
+  /** AES-256 encryption key for credentials at rest.
+   * If set in env, it's used directly. Otherwise, a key is generated
+   * on first startup and stored in the database (persists across deploys). */
+  encryptionKey: process.env.ENCRYPTION_KEY || '',
 };

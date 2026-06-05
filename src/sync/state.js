@@ -5,7 +5,99 @@
  * Stores: merchants, last sync time, total synced count, processor txn IDs, recent errors.
  * All functions are async (PostgreSQL native).
  */
+import crypto from 'crypto';
 import { query, closePool } from '../db.js';
+import { config } from '../config.js';
+
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 16;  // 128-bit IV for GCM
+
+// Encryption key — initialized at startup, cached in memory
+let _encryptionKey = null;
+
+/**
+ * Initialize the encryption key on first startup.
+ * Priority: 1) ENCRYPTION_KEY env var  2) server_secrets DB table  3) new generated key
+ */
+async function initEncryptionKey() {
+  if (_encryptionKey) return;
+
+  // 1. Check env var
+  if (config.encryptionKey) {
+    _encryptionKey = crypto.createHash('sha256').update(config.encryptionKey).digest();
+    console.log('🔐 Encryption: using ENCRYPTION_KEY from environment');
+    return;
+  }
+
+  // 2. Check DB for existing key
+  try {
+    const { rows } = await query("SELECT value FROM server_secrets WHERE key = 'encryption_key'");
+    if (rows.length > 0) {
+      _encryptionKey = Buffer.from(rows[0].value, 'hex');
+      console.log('🔐 Encryption: loaded key from database');
+      return;
+    }
+  } catch {
+    // Table might not exist yet during initDatabase — will be handled after schema init
+  }
+
+  // 3. Generate new key and store in DB
+  const rawKey = crypto.randomBytes(32);
+  _encryptionKey = rawKey; // already 32 bytes
+  try {
+    await query("INSERT INTO server_secrets (key, value) VALUES ('encryption_key', $1) ON CONFLICT (key) DO NOTHING", [rawKey.toString('hex')]);
+    console.log('🔐 Encryption: generated and stored new key in database');
+  } catch {
+    // Table might not exist yet — key still works in memory for this session
+    console.warn('⚠️  Could not store encryption key in DB. Data will be lost on restart.');
+  }
+}
+
+function getEncryptionKey() {
+  if (!_encryptionKey) {
+    throw new Error('Encryption key not initialized. Call initEncryptionKey() first.');
+  }
+  return _encryptionKey;
+}
+
+/**
+ * Encrypt a plaintext string using AES-256-GCM.
+ * Returns: iv:authTag:ciphertext (all hex-encoded)
+ */
+export function encrypt(plaintext) {
+  if (!plaintext) return '';
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag().toString('hex');
+  return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+}
+
+/**
+ * Decrypt a ciphertext string that was encrypted with encrypt().
+ * Input format: iv:authTag:ciphertext (hex-encoded)
+ */
+export function decrypt(ciphertext) {
+  if (!ciphertext || !ciphertext.includes(':')) return ciphertext;
+  const key = getEncryptionKey();
+  const parts = ciphertext.split(':');
+  if (parts.length !== 3) return ciphertext; // not encrypted, return as-is
+  const iv = Buffer.from(parts[0], 'hex');
+  const authTag = Buffer.from(parts[1], 'hex');
+  const encrypted = parts[2];
+  try {
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    // If decryption fails, return as-is (backward compat with unencrypted data)
+    return ciphertext;
+  }
+}
 
 /**
  * Initialize the database schema.
@@ -86,6 +178,15 @@ export async function initDatabase() {
     // Some Postgres versions don't support IF NOT EXISTS for columns — ignore
   }
 
+  // Server secrets table (encryption keys, etc.)
+  await query(`
+    CREATE TABLE IF NOT EXISTS server_secrets (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+
   // OAuth state table for Stripe Connect flow
   await query(`
     CREATE TABLE IF NOT EXISTS oauth_states (
@@ -103,10 +204,27 @@ export async function initDatabase() {
     await query('INSERT INTO sync_state (id, total_synced) VALUES (1, 0)');
   }
 
+  // Initialize encryption key (env var → DB → generate new)
+  await initEncryptionKey();
+
   console.log('✅ Database schema initialized');
 }
 
 // ── Merchant CRUD ──────────────────────────────────────────────
+
+/**
+ * Decrypt sensitive fields on a merchant row fetched from DB.
+ * Always decrypts stripe_key, paypal_client_id, paypal_client_secret.
+ */
+function decryptMerchant(merchant) {
+  if (!merchant) return merchant;
+  return {
+    ...merchant,
+    stripe_key: decrypt(merchant.stripe_key || ''),
+    paypal_client_id: decrypt(merchant.paypal_client_id || ''),
+    paypal_client_secret: decrypt(merchant.paypal_client_secret || ''),
+  };
+}
 
 function generateApiKey() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -135,7 +253,7 @@ export async function createMerchant(displayName) {
  */
 export async function getMerchant(id) {
   const { rows } = await query('SELECT * FROM merchants WHERE id = $1', [id]);
-  return rows[0] || null;
+  return decryptMerchant(rows[0] || null);
 }
 
 /**
@@ -143,7 +261,7 @@ export async function getMerchant(id) {
  */
 export async function getMerchantByApiKey(apiKey) {
   const { rows } = await query('SELECT * FROM merchants WHERE api_key = $1', [apiKey]);
-  return rows[0] || null;
+  return decryptMerchant(rows[0] || null);
 }
 
 /**
@@ -152,7 +270,7 @@ export async function getMerchantByApiKey(apiKey) {
 export async function getMerchantByStripeAccountId(stripeAccountId) {
   if (!stripeAccountId) return null;
   const { rows } = await query('SELECT * FROM merchants WHERE stripe_account_id = $1', [stripeAccountId]);
-  return rows[0] || null;
+  return decryptMerchant(rows[0] || null);
 }
 
 /**
@@ -162,7 +280,14 @@ export async function updateMerchantCredentials(id, credentials) {
   const fields = [];
   const values = [];
   let idx = 1;
-  for (const [key, val] of Object.entries(credentials)) {
+
+  // Encrypt sensitive fields before storing
+  const encrypted = { ...credentials };
+  if (encrypted.stripe_key) encrypted.stripe_key = encrypt(encrypted.stripe_key);
+  if (encrypted.paypal_client_id) encrypted.paypal_client_id = encrypt(encrypted.paypal_client_id);
+  if (encrypted.paypal_client_secret) encrypted.paypal_client_secret = encrypt(encrypted.paypal_client_secret);
+
+  for (const [key, val] of Object.entries(encrypted)) {
     if (['stripe_key', 'stripe_account_id', 'paypal_client_id', 'paypal_client_secret', 'paypal_environment', 'display_name'].includes(key)) {
       fields.push(`${key} = $${idx}`);
       values.push(val);
@@ -274,9 +399,10 @@ export async function consumeOAuthState(state) {
  * Update a merchant's Stripe credentials after successful OAuth.
  */
 export async function updateMerchantStripeOAuth(merchantId, accessToken, stripeAccountId) {
+  const encryptedKey = encrypt(accessToken);
   await query(
     'UPDATE merchants SET stripe_key = $1, stripe_account_id = $2, updated_at = NOW() WHERE id = $3',
-    [accessToken, stripeAccountId, merchantId]
+    [encryptedKey, stripeAccountId, merchantId]
   );
   return getMerchant(merchantId);
 }
@@ -297,7 +423,7 @@ export async function countSyncedTransactions(merchantId) {
  */
 export async function getMerchantBySubscriptionId(subscriptionId) {
   const { rows } = await query('SELECT * FROM merchants WHERE stripe_subscription_id = $1', [subscriptionId]);
-  return rows[0] || null;
+  return decryptMerchant(rows[0] || null);
 }
 
 /**
@@ -305,7 +431,7 @@ export async function getMerchantBySubscriptionId(subscriptionId) {
  */
 export async function getAllMerchants() {
   const { rows } = await query('SELECT * FROM merchants ORDER BY created_at DESC');
-  return rows;
+  return rows.map(decryptMerchant);
 }
 
 /**
