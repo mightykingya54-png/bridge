@@ -147,6 +147,15 @@ export async function getMerchantByApiKey(apiKey) {
 }
 
 /**
+ * Find a merchant by their Stripe account ID (acct_xxx).
+ */
+export async function getMerchantByStripeAccountId(stripeAccountId) {
+  if (!stripeAccountId) return null;
+  const { rows } = await query('SELECT * FROM merchants WHERE stripe_account_id = $1', [stripeAccountId]);
+  return rows[0] || null;
+}
+
+/**
  * Update a merchant's credentials.
  */
 export async function updateMerchantCredentials(id, credentials) {
@@ -154,7 +163,7 @@ export async function updateMerchantCredentials(id, credentials) {
   const values = [];
   let idx = 1;
   for (const [key, val] of Object.entries(credentials)) {
-    if (['stripe_key', 'paypal_client_id', 'paypal_client_secret', 'paypal_environment', 'display_name'].includes(key)) {
+    if (['stripe_key', 'stripe_account_id', 'paypal_client_id', 'paypal_client_secret', 'paypal_environment', 'display_name'].includes(key)) {
       fields.push(`${key} = $${idx}`);
       values.push(val);
       idx++;

@@ -431,6 +431,14 @@ export function setupWebUI(app, BASE_URL) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-configure').classList.add('active');
     document.getElementById('error-configure').textContent = 'Stripe connection failed: ' + (params.get('detail') || 'Unknown error');
+  } else if (params.get('error') === 'trial_expired_reuse' && API_KEY) {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.step-panel').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('error-configure').innerHTML =
+      '⚠️ This Stripe account already used its free trial. ' +
+      'Each Stripe account is eligible for one trial only. ' +
+      '<a href="#pricing">Subscribe at $49/mo</a> to continue, or use a different Stripe account.';
   } else if (API_KEY) {
     // Already have a key — verify it's still valid before going to dashboard
     (async () => {

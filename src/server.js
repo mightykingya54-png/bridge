@@ -20,6 +20,7 @@ import {
   getMerchant,
   getMerchantByApiKey,
   getMerchantBySubscriptionId,
+  getMerchantByStripeAccountId,
   updateMerchantCredentials,
   getAllMerchants,
   getState,
@@ -199,6 +200,23 @@ app.post('/api/configure', async (req, res) => {
     try {
       const stripeInfo = await testStripe(stripeKey);
       console.log(`   ✅ Merchant ${merchant.id}: Stripe connected (${stripeInfo.accountId})`);
+
+      // Check if this Stripe account was previously registered by a different merchant
+      // whose trial has already expired (prevents free reuse via re-registration)
+      const existingMerchant = await getMerchantByStripeAccountId(stripeInfo.accountId);
+      if (existingMerchant && existingMerchant.id !== merchant.id) {
+        const existingSub = await getSubscription(existingMerchant.id);
+        if (existingSub && !existingSub.active) {
+          console.log(`   ⛔ Merchant ${merchant.id}: Stripe account ${stripeInfo.accountId} already used by expired merchant ${existingMerchant.id}`);
+          return res.status(400).json({
+            error: 'This Stripe account has already used its free trial. Each Stripe account is eligible for one trial only.',
+            hint: 'Subscribe at $49/mo to continue using Bridge with this Stripe account, or use a different Stripe account.',
+          });
+        }
+        // If existing merchant's subscription is still active, they're paying — that's fine
+      }
+
+      updates.stripe_account_id = stripeInfo.accountId;
     } catch (err) {
       return res.status(400).json({
         error: `Stripe key invalid: ${err.message}`,
@@ -631,6 +649,16 @@ app.get('/api/stripe/oauth/callback', async (req, res) => {
 
     const accessToken = tokenResponse.access_token;
     const stripeUserId = tokenResponse.stripe_user_id;
+
+    // Prevent re-registration of the same Stripe account after trial expired
+    const existingOAuth = await getMerchantByStripeAccountId(stripeUserId);
+    if (existingOAuth && existingOAuth.id !== stateRecord.merchant_id) {
+      const existingSub = await getSubscription(existingOAuth.id);
+      if (existingSub && !existingSub.active) {
+        console.log(`   ⛔ OAuth: Stripe account ${stripeUserId} already used by expired merchant ${existingOAuth.id}`);
+        return res.redirect(`${BASE_URL}/app?error=trial_expired_reuse`);
+      }
+    }
 
     // Store the access token as the merchant's Stripe key
     await updateMerchantStripeOAuth(stateRecord.merchant_id, accessToken, stripeUserId);
