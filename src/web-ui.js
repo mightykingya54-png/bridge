@@ -115,6 +115,8 @@ export function setupWebUI(app, BASE_URL) {
     .card .green:hover { background: #047857; }
     .card .red { background: #dc2626; }
     .card .red:hover { background: #b91c1c; }
+    .card details summary { outline: none; }
+    .card details summary::-webkit-details-marker { color: #94a3b8; }
     .card pre { background: #f8fafc; padding: 10px 14px; border-radius: 8px; font-size: 12px; border: 1px solid #f1f5f9; overflow-x: auto; word-break: break-all; }
     .step-view { display: none; }
     .step-view.active { display: block; }
@@ -377,7 +379,13 @@ export function setupWebUI(app, BASE_URL) {
       <div id="error-billing" class="error" style="margin-top:4px;"></div>
     </div>
     <hr />
-    <button onclick="resetAll()" class="red">Reset</button>
+    <details style="margin-top:12px;cursor:pointer;">
+      <summary style="font-size:13px;color:#94a3b8;">⚠️ Danger Zone</summary>
+      <div style="margin-top:8px;padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;">
+        <p style="font-size:13px;color:#991b1b;margin-bottom:8px;font-weight:500;">Reset removes your Stripe and PayPal credentials from this browser. Sync will stop.</p>
+        <button onclick="resetAll()" class="red">Reset Everything</button>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -652,7 +660,12 @@ export function setupWebUI(app, BASE_URL) {
     finally { document.getElementById('btn-sync').disabled = false; }
   }
 
-  function resetAll() { localStorage.removeItem('bridge_api_key'); location.reload(); }
+  function resetAll() {
+    if (!confirm('Are you sure you want to reset? Your Stripe and PayPal credentials will be removed from this browser. Sync will stop.')) return;
+    if (!confirm('This cannot be undone. Your configured credentials will be lost.')) return;
+    localStorage.removeItem('bridge_api_key');
+    location.reload();
+  }
 </script>
 </body>
 </html>`);
