@@ -746,13 +746,20 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       },
     });
 
-    // Construct the hosted checkout URL manually.
-    // transaction.checkout.url is the RETURN URL (what we set),
-    // NOT the hosted checkout. The correct hosted checkout URL
-    // is always at checkout.paddle.com/transaction/{id}.
-    const hostedCheckoutUrl = `https://checkout.paddle.com/transaction/${transaction.id}`;
+    // The checkout URL is our own domain + ?_ptxn=txn_id
+    // Paddle.js on the landing page detects this param and auto-opens the overlay
+    const checkoutUrl = transaction.checkout?.url || null;
+
+    if (!checkoutUrl) {
+      // If no checkout URL (domain not yet approved), return the transaction ID
+      // and the frontend will use Paddle.Checkout.open({ transactionId })
+      console.log(`⚠️  No checkout URL for txn ${transaction.id}, returning transactionId for overlay`);
+      res.json({ transactionId: transaction.id });
+      return;
+    }
+
     console.log(`✅ Merchant ${merchant.id}: Paddle checkout created (txn ${transaction.id})`);
-    res.json({ url: hostedCheckoutUrl });
+    res.json({ url: checkoutUrl });
   } catch (err) {
     res.status(500).json({ error: `Checkout error: ${err.message}` });
   }

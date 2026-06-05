@@ -11,6 +11,8 @@ export function setupWebUI(app, BASE_URL) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bridge — Sync PayPal to Stripe</title>
+  <!-- Paddle.js for checkout overlay -->
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -646,8 +648,22 @@ export function setupWebUI(app, BASE_URL) {
       const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      if (d.url) window.location.href = d.url;
-      else if (d.active) document.getElementById('error-billing').textContent = 'Already subscribed.';
+      if (d.url) {
+        // Redirect to checkout URL (our domain + ?_ptxn=txn_id)
+        // Paddle.js on that page auto-opens the overlay
+        window.location.href = d.url;
+        return;
+      } else if (d.transactionId) {
+        // No checkout URL (domain pending approval) — try overlay directly
+        if (typeof Paddle !== 'undefined' && Paddle.Checkout) {
+          Paddle.Checkout.open({ transactionId: d.transactionId });
+          setLoading('btn-subscribe', false);
+        } else {
+          throw new Error('Paddle.js not loaded. Please refresh and try again.');
+        }
+      } else if (d.active) {
+        document.getElementById('error-billing').textContent = 'Already subscribed.';
+      }
       setLoading('btn-subscribe', false);
     } catch (e) { document.getElementById('error-billing').textContent = e.message; setLoading('btn-subscribe', false); }
   }
