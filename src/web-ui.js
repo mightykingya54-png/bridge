@@ -10,7 +10,13 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bridge — Sync PayPal to Stripe</title>
+  <title>Bridge — Sync PayPal to Stripe Revenue Recognition</title>
+  <meta name="description" content="Automatically sync PayPal transactions into Stripe Revenue Recognition. No manual CSV exports. $49/month. 7-day free trial.">
+  <meta property="og:title" content="Bridge — PayPal to Stripe Revenue Recognition">
+  <meta property="og:description" content="PayPal transactions appear in your Stripe Revenue Recognition dashboard automatically. Daily sync, no manual work, no spreadsheets.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://bridge-production-ad61.up.railway.app/">
+  <meta name="twitter:card" content="summary_large_image">
   <!-- Paddle.js for checkout overlay -->
   <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <style>
@@ -311,7 +317,7 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     <p>Paste your Stripe secret key. Bridge reads transactions only — <strong>read-only access</strong>.</p>
 
     <!-- Stripe key (primary) — always visible -->
-    <label>Stripe Secret Key</label>
+    <label>Stripe Secret Key <a href="https://dashboard.stripe.com/apikeys" target="_blank" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">Where to find this →</a></label>
     <input type="password" id="stripe-key" placeholder="sk_live_... or sk_test_..." />
 
     <!-- OAuth secondary option -->
@@ -331,9 +337,9 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     <details style="font-size:13px;color:#64748b;">
       <summary style="cursor:pointer;font-weight:600;color:#475569;">Add PayPal (optional)</summary>
       <p style="margin:8px 0 6px;">Bridge can also sync your PayPal transactions into Stripe Revenue Recognition. This step is optional.</p>
-      <label>PayPal Client ID</label>
+      <label>PayPal Client ID <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">Where to find this →</a></label>
       <input type="text" id="paypal-client-id" placeholder="A..." />
-      <label>PayPal Client Secret</label>
+      <label>PayPal Client Secret <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">Where to find this →</a></label>
       <input type="password" id="paypal-client-secret" placeholder="E..." />
     </details>
   </div>

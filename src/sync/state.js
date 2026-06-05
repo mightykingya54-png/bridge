@@ -375,6 +375,20 @@ export async function getSubscription(merchantId) {
  * Check if a merchant can sync (based on subscription status).
  * Free tier: unlimited during 7-day trial, then blocked.
  */
+/**
+ * Start the trial clock if it hasn't started yet.
+ * Trial begins on first successful configuration, not on registration.
+ * This prevents users who register but configure 6 days later from
+ * only having 1 day of trial remaining.
+ */
+export async function startTrialIfNeeded(merchantId) {
+  await query(
+    `UPDATE merchants SET trial_end_at = NOW() + INTERVAL '7 days'
+     WHERE id = $1 AND trial_end_at IS NULL AND subscription_status = 'trial'`,
+    [merchantId]
+  );
+}
+
 export async function canSync(merchantId) {
   const sub = await getSubscription(merchantId);
   if (!sub) return { allowed: false, reason: 'Merchant not found' };

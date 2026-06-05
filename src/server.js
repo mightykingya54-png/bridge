@@ -31,6 +31,7 @@ import {
   getAllSyncedRefunds,
   closeDatabase,
   canSync,
+  startTrialIfNeeded,
   getSubscription,
   updateSubscription,
   createOAuthState,
@@ -271,6 +272,13 @@ app.post('/api/configure', async (req, res) => {
   }
 
   const updated = await updateMerchantCredentials(merchant.id, updates);
+
+  // Start 7-day trial on first successful configuration (not on registration)
+  // This gives merchants the full 7 days after they first set up their keys
+  const actuallyConfigured = !!(stripeKey || (paypalClientId && paypalClientSecret));
+  if (actuallyConfigured) {
+    await startTrialIfNeeded(merchant.id);
+  }
 
   res.json({
     success: true,
