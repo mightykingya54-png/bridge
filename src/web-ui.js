@@ -152,8 +152,8 @@ export function setupWebUI(app, BASE_URL) {
 
 <!-- ════════════════ HERO ════════════════ -->
 <div class="hero">
-  <div class="badge">🚀 2 transactions synced · 1 merchant · Live in production</div>
-  <h1>Stripe shows <span class="accent">Stripe payments</span>.<br/>Bridge makes PayPal show up there too.</h1>
+  <div class="badge">⚡ Pushing PayPal transactions into Stripe Revenue Recognition</div>
+  <h1>Stripe is <span class="accent">missing your PayPal revenue</span>.<br/>Bridge fills it in automatically.</h1>
   <p class="sub">Every PayPal transaction is pushed into Stripe as a Payment Record — automatically, daily, with zero manual work. Revenue Recognition, Sigma, and all your Stripe reports finally show your complete revenue.</p>
 
   <div class="cta-row">
@@ -224,12 +224,12 @@ export function setupWebUI(app, BASE_URL) {
 <section>
   <h2>Works with the tools you already use.</h2>
   <div class="grid">
-    <div class="grid-item">📊 Revenue Recognition</div>
-    <div class="grid-item">📋 Sigma reports</div>
-    <div class="grid-item">💰 Payout reconciliation</div>
-    <div class="grid-item">📈 Stripe Dashboard</div>
-    <div class="grid-item">🔍 Audit logs</div>
-    <div class="grid-item">🔄 Refund sync</div>
+    <div class="grid-item">🟢 PayPal appears in Revenue Recognition</div>
+    <div class="grid-item">🔵 Query all revenue in one SQL query</div>
+    <div class="grid-item">🟢 PayPal payouts show in Stripe</div>
+    <div class="grid-item">🟢 One dashboard for all revenue</div>
+    <div class="grid-item">🟢 Auditable sync trail</div>
+    <div class="grid-item">🟢 Refunds sync automatically</div>
   </div>
 </section>
 
@@ -245,7 +245,7 @@ export function setupWebUI(app, BASE_URL) {
       <li>Refund syncing</li>
       <li>Cancel anytime</li>
     </ul>
-    <a href="#setup" class="btn btn-primary" style="display:block;text-align:center;">Start 7-day free trial</a>
+    <a href="#setup" class="btn btn-primary" style="display:block;text-align:center;">Start free trial — 7 days only</a>
     <div class="guarantee">🛡️ No credit card required</div>
   </div>
 </section>
@@ -275,7 +275,7 @@ export function setupWebUI(app, BASE_URL) {
 
 <!-- ════════════════ FINAL CTA ════════════════ -->
 <section class="text-center" style="padding:24px 0 40px;">
-  <h2 class="mb-0">Stop exporting PayPal CSVs.<br/><span class="sub">Let Bridge do it.</span></h2>
+  <h2 class="mb-0">Your 7-day trial is waiting.<br/><span class="sub">Start now. No credit card.</span></h2>
   <div class="cta-row" style="margin-top:20px;">
     <a href="#setup" class="btn btn-primary">Start free trial →</a>
   </div>
@@ -290,8 +290,6 @@ export function setupWebUI(app, BASE_URL) {
   <div class="card step-view active" id="s-register">
     <h2>Create your account</h2>
     <p>No credit card required. Trial starts now.</p>
-    <label>Business name (optional)</label>
-    <input type="text" id="display-name" placeholder="My Business" />
     <button id="btn-register" onclick="register()">Start free trial →</button>
     <div id="error-register" class="error" style="margin-top:8px;"></div>
   </div>
@@ -367,14 +365,13 @@ export function setupWebUI(app, BASE_URL) {
   }
 
   async function register() {
-    const name = document.getElementById('display-name').value;
     document.getElementById('btn-register').disabled = true;
     document.getElementById('error-register').textContent = '';
     try {
       const r = await fetch(API + '/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: name || 'Bridge User' }),
+        body: JSON.stringify({ displayName: 'Bridge User' }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Registration failed');
