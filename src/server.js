@@ -31,6 +31,9 @@ import {
   canSync,
   getSubscription,
   updateSubscription,
+  createOAuthState,
+  consumeOAuthState,
+  updateMerchantStripeOAuth,
 } from './sync/state.js';
 
 const app = express();
@@ -43,11 +46,12 @@ app.use(express.json());
 // auth for the Stripe App UI to show before registration.
 async function authRequired(req, res, next) {
   try {
-    // Skip auth for register endpoint, root status, web UI, and Stripe webhook
+    // Skip auth for register, root status, web UI, Stripe webhook, and OAuth callback
     if (req.path === '/api/register' && req.method === 'POST') return next();
     if (req.path === '/' && req.method === 'GET') return next();
     if (req.path === '/app') return next();
     if (req.path === '/api/stripe-webhook') return next();
+    if (req.path === '/api/stripe/oauth/callback') return next();
 
     // Parse API key from Authorization header (for any method)
     const authHeader = req.headers.authorization || '';
@@ -540,6 +544,92 @@ app.post('/api/stripe-webhook', async (req, res) => {
   } catch (err) {
     console.error('❌ Webhook error:', err.message);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ── Stripe OAuth ────────────────────────────────────────────────
+
+/**
+ * GET /api/stripe/oauth/start
+ * Initiate Stripe Connect OAuth flow for the authenticated merchant.
+ * Redirects the merchant to Stripe's authorization page.
+ */
+app.get('/api/stripe/oauth/start', async (req, res) => {
+  try {
+    if (!req.merchant) {
+      return res.redirect(`${BASE_URL}/app?error=auth_required`);
+    }
+
+    const clientId = config.stripe.clientId;
+    if (!clientId) {
+      return res.status(500).json({ error: 'Stripe OAuth not configured. Contact support.' });
+    }
+
+    // Generate a random state token and store it linked to this merchant
+    const crypto = await import('crypto');
+    const state = crypto.randomBytes(32).toString('hex');
+    await createOAuthState(state, req.merchant.id);
+
+    const redirectUri = `${BASE_URL}/api/stripe/oauth/callback`;
+    const authUrl =
+      `https://connect.stripe.com/oauth/authorize` +
+      `?response_type=code` +
+      `&client_id=${clientId}` +
+      `&scope=read_write` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${state}`;
+
+    res.redirect(authUrl);
+  } catch (err) {
+    res.status(500).json({ error: `OAuth error: ${err.message}` });
+  }
+});
+
+/**
+ * GET /api/stripe/oauth/callback
+ * Handles the OAuth callback from Stripe after merchant authorizes.
+ * Exchanges the auth code for an access token and stores it.
+ */
+app.get('/api/stripe/oauth/callback', async (req, res) => {
+  try {
+    const { code, state, error } = req.query;
+
+    if (error) {
+      console.log(`ℹ️  OAuth denied: ${error}`);
+      return res.redirect(`${BASE_URL}/app?error=oauth_denied`);
+    }
+
+    if (!code || !state) {
+      return res.status(400).send('Missing code or state parameter');
+    }
+
+    // Verify the state token and find the merchant
+    const stateRecord = await consumeOAuthState(state);
+    if (!stateRecord) {
+      return res.status(400).send('Invalid or expired OAuth state. Please try again.');
+    }
+
+    // Exchange the authorization code for an access token
+    const Stripe = (await import('stripe')).default;
+    const stripe = Stripe(config.stripe.secretKey);
+
+    const tokenResponse = await stripe.oauth.token({
+      grant_type: 'authorization_code',
+      code,
+    });
+
+    const accessToken = tokenResponse.access_token;
+    const stripeUserId = tokenResponse.stripe_user_id;
+
+    // Store the access token as the merchant's Stripe key
+    await updateMerchantStripeOAuth(stateRecord.merchant_id, accessToken, stripeUserId);
+    console.log(`✅ Merchant ${stateRecord.merchant_id}: Stripe connected via OAuth (${stripeUserId})`);
+
+    // Redirect back to the app dashboard
+    res.redirect(`${BASE_URL}/app?oauth=success`);
+  } catch (err) {
+    console.error('❌ OAuth callback error:', err.message);
+    res.redirect(`${BASE_URL}/app?error=oauth_failed&detail=${encodeURIComponent(err.message)}`);
   }
 });
 

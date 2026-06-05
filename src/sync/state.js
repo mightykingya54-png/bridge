@@ -81,9 +81,21 @@ export async function initDatabase() {
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial'`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free'`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS trial_end_at TIMESTAMP`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS stripe_account_id TEXT DEFAULT ''`);
   } catch (e) {
     // Some Postgres versions don't support IF NOT EXISTS for columns — ignore
   }
+
+  // OAuth state table for Stripe Connect flow
+  await query(`
+    CREATE TABLE IF NOT EXISTS oauth_states (
+      id SERIAL PRIMARY KEY,
+      state TEXT UNIQUE NOT NULL,
+      merchant_id TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      used BOOLEAN NOT NULL DEFAULT FALSE
+    );
+  `);
 
   // Ensure the default state row exists (backward compat)
   const { rows } = await query('SELECT id FROM sync_state WHERE id = 1');
@@ -221,6 +233,43 @@ export async function canSync(merchantId) {
   if (!sub) return { allowed: false, reason: 'Merchant not found' };
   if (sub.active) return { allowed: true };
   return { allowed: false, reason: 'Trial expired. Subscribe at /app to continue syncing.' };
+}
+
+// ── OAuth ───────────────────────────────────────────────────────
+
+/**
+ * Create a new OAuth state token for a merchant.
+ */
+export async function createOAuthState(state, merchantId) {
+  await query(
+    'INSERT INTO oauth_states (state, merchant_id) VALUES ($1, $2)',
+    [state, merchantId]
+  );
+}
+
+/**
+ * Consume (look up and mark used) an OAuth state token.
+ * Returns the state record or null if invalid/expired.
+ */
+export async function consumeOAuthState(state) {
+  const { rows } = await query(
+    'SELECT * FROM oauth_states WHERE state = $1 AND used = FALSE ORDER BY created_at DESC LIMIT 1',
+    [state]
+  );
+  if (rows.length === 0) return null;
+  await query('UPDATE oauth_states SET used = TRUE WHERE id = $1', [rows[0].id]);
+  return rows[0];
+}
+
+/**
+ * Update a merchant's Stripe credentials after successful OAuth.
+ */
+export async function updateMerchantStripeOAuth(merchantId, accessToken, stripeAccountId) {
+  await query(
+    'UPDATE merchants SET stripe_key = $1, stripe_account_id = $2, updated_at = NOW() WHERE id = $3',
+    [accessToken, stripeAccountId, merchantId]
+  );
+  return getMerchant(merchantId);
 }
 
 /**

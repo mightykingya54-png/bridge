@@ -303,25 +303,55 @@ export function setupWebUI(app, BASE_URL) {
 
   <div class="card step-view" id="s-configure">
     <h2>Connect your accounts</h2>
-    <p>Enter your credentials. <a href="https://docs.stripe.com/keys" target="_blank" style="color:#6366f1;">Where do I find these?</a></p>
-    <label>Stripe Secret Key</label>
-    <input type="password" id="stripe-key" placeholder="sk_live_..." />
+    <p>Bridge needs access to your payment processors. Start with Stripe — one click.</p>
+
+    <!-- Stripe OAuth (primary) -->
+    <label>Stripe</label>
+    <button id="btn-stripe-oauth" onclick="connectStripe()" style="width:100%;padding:12px;font-size:15px;background:#635bff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-bottom:4px;">
+      🔗 Connect with Stripe
+    </button>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px;">One-click · Stripe handles auth · Read-only access</p>
+
+    <!-- Manual Stripe fallback -->
+    <div onclick="toggleManualStripe()" style="cursor:pointer;color:#6366f1;font-size:13px;font-weight:600;text-align:center;margin:8px 0 14px;" id="toggle-manual-text">
+      ▼ Advanced: Paste secret key
+    </div>
+    <div id="manual-stripe-section" style="display:none;">
+      <label>Stripe Secret Key</label>
+      <input type="password" id="stripe-key" placeholder="sk_live_..." />
+    </div>
+
     <label>PayPal Client ID</label>
     <input type="text" id="paypal-client-id" placeholder="A..." />
     <label>PayPal Client Secret</label>
     <input type="password" id="paypal-client-secret" placeholder="E..." />
-    <button id="btn-configure" onclick="configure()">Save & connect</button>
+    <button id="btn-configure" onclick="configure()">Save & continue</button>
     <div id="error-configure" class="error" style="margin-top:8px;"></div>
     <div id="success-configure" class="success" style="margin-top:8px;"></div>
   </div>
 
   <div class="card step-view" id="s-dashboard">
+    <div id="dash-oauth-message" style="display:none;"></div>
     <h2>Dashboard</h2>
     <p>Stripe: <span id="stripe-status" class="badge badge-no">Not connected</span> &nbsp;&middot;&nbsp; PayPal: <span id="paypal-status" class="badge badge-no">Not connected</span></p>
     <p style="font-size:14px;">Synced: <strong><span id="sync-count">0</span></strong> · Last sync: <span id="sync-time" style="color:#64748b;">Never</span></p>
     <button id="btn-sync" onclick="syncNow()" style="margin-top:4px;">Sync now</button>
     <div id="error-sync" class="error" style="margin-top:8px;"></div>
     <div id="success-sync" class="success" style="margin-top:8px;"></div>
+
+    <!-- PayPal config (shown when PayPal is not connected) -->
+    <div id="paypal-config-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
+      <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect PayPal</p>
+      <p style="font-size:13px;color:#64748b;margin-bottom:10px;">You'll need your PayPal API credentials.</p>
+      <label>PayPal Client ID</label>
+      <input type="text" id="dash-paypal-id" placeholder="A..." />
+      <label>PayPal Client Secret</label>
+      <input type="password" id="dash-paypal-secret" placeholder="E..." />
+      <button onclick="configurePaypal()">Save PayPal</button>
+      <div id="error-paypal" class="error" style="margin-top:6px;"></div>
+      <div id="success-paypal" class="success" style="margin-top:6px;"></div>
+    </div>
+
     <hr />
     <div>
       <p style="font-weight:600;margin-bottom:4px;">Plan</p>
@@ -357,8 +387,27 @@ export function setupWebUI(app, BASE_URL) {
     }, 300);
   }
 
-  // Already registered?
-  if (API_KEY) {
+  // Handle OAuth redirect params
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('oauth') === 'success' && API_KEY) {
+    // OAuth success — show dashboard with Stripe connected
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-dashboard').classList.add('active');
+    const msg = document.getElementById('dash-oauth-message');
+    msg.style.display = 'block';
+    msg.className = 'success';
+    msg.textContent = '✅ Stripe connected! Connect PayPal below to start syncing.';
+    loadDashboard();
+  } else if (params.get('error') === 'oauth_denied' && API_KEY) {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('error-configure').textContent = 'Stripe authorization was cancelled. Try again or use manual entry.';
+  } else if (params.get('error') === 'oauth_failed' && API_KEY) {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('error-configure').textContent = 'Stripe connection failed: ' + (params.get('detail') || 'Unknown error');
+  } else if (API_KEY) {
+    // Already registered — go to dashboard
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
     loadDashboard();
@@ -428,6 +477,41 @@ export function setupWebUI(app, BASE_URL) {
     }
   }
 
+  // ── Stripe OAuth ──────────────────────────────────────────
+  function connectStripe() {
+    window.location.href = API + '/api/stripe/oauth/start';
+  }
+
+  function toggleManualStripe() {
+    const section = document.getElementById('manual-stripe-section');
+    const text = document.getElementById('toggle-manual-text');
+    const hidden = section.style.display === 'none' || !section.style.display;
+    section.style.display = hidden ? 'block' : 'none';
+    text.textContent = hidden ? '▲ Hide manual entry' : '▼ Advanced: Paste secret key';
+  }
+
+  // ── PayPal inline config (on dashboard) ──────────────────
+  async function configurePaypal() {
+    const id = document.getElementById('dash-paypal-id').value;
+    const secret = document.getElementById('dash-paypal-secret').value;
+    if (!id || !secret) { document.getElementById('error-paypal').textContent = 'Fill in both PayPal fields'; return; }
+    document.getElementById('error-paypal').textContent = '';
+    document.getElementById('success-paypal').textContent = '';
+    try {
+      const r = await fetch(API + '/api/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+        body: JSON.stringify({ paypalClientId: id, paypalClientSecret: secret }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Configuration failed');
+      document.getElementById('success-paypal').textContent = '✅ PayPal connected!';
+      loadDashboard();
+    } catch (e) {
+      document.getElementById('error-paypal').textContent = e.message;
+    }
+  }
+
   async function loadDashboard() {
     try {
       const r = await fetch(API + '/api/status', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
@@ -439,6 +523,13 @@ export function setupWebUI(app, BASE_URL) {
       if (d.sync) {
         document.getElementById('sync-count').textContent = d.sync.totalSynced || 0;
         document.getElementById('sync-time').textContent = d.sync.lastSyncAt ? new Date(d.sync.lastSyncAt).toLocaleDateString() : 'Never';
+      }
+      // Show PayPal config card only when Stripe is connected but PayPal is not
+      const paypalSection = document.getElementById('paypal-config-section');
+      if (d.stripe?.connected && !d.paypal?.connected) {
+        paypalSection.style.display = 'block';
+      } else {
+        paypalSection.style.display = 'none';
       }
     } catch (e) { console.error(e); }
 
