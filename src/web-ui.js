@@ -425,10 +425,22 @@ export function setupWebUI(app, BASE_URL) {
     document.getElementById('s-configure').classList.add('active');
     document.getElementById('error-configure').textContent = 'Stripe connection failed: ' + (params.get('detail') || 'Unknown error');
   } else if (API_KEY) {
-    // Already registered — go to dashboard
-    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
-    document.getElementById('s-dashboard').classList.add('active');
-    loadDashboard();
+    // Already have a key — verify it's still valid before going to dashboard
+    (async () => {
+      try {
+        const r = await fetch(API + '/api/status', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
+        const d = await r.json();
+        if (d.needsAuth) throw new Error('Invalid key');
+        // Valid key — show dashboard
+        document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+        document.getElementById('s-dashboard').classList.add('active');
+        loadDashboard();
+      } catch (e) {
+        // Stale key — clear it and show registration
+        localStorage.removeItem('bridge_api_key');
+        document.getElementById('error-register').textContent = '⚠️ Previous session expired. Register again to start fresh.';
+      }
+    })();
   }
 
   async function register() {
