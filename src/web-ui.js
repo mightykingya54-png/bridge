@@ -152,12 +152,18 @@ export function setupWebUI(app, BASE_URL) {
 
 <!-- ════════════════ HERO ════════════════ -->
 <div class="hero">
-  <div class="badge">Syncs with Stripe’s official Payment Records API</div>
-  <h1>PayPal payments now show up<br/>in your <span class="accent">Stripe dashboard</span>.</h1>
-  <p class="sub">If you use Stripe + PayPal, Bridge automatically pushes every PayPal transaction into Stripe as a Payment Record. They appear in Revenue Recognition, Sigma, and all your Stripe reports.</p>
+  <div class="badge">🚀 2 transactions synced · 1 merchant · Live in production</div>
+  <h1>Stripe shows <span class="accent">Stripe payments</span>.<br/>Bridge makes PayPal show up there too.</h1>
+  <p class="sub">Every PayPal transaction is pushed into Stripe as a Payment Record — automatically, daily, with zero manual work. Revenue Recognition, Sigma, and all your Stripe reports finally show your complete revenue.</p>
+
+  <div class="cta-row">
+    <a href="#setup" class="btn btn-primary">Start free trial →</a>
+    <a href="#how" class="btn btn-outline">See how</a>
+  </div>
+  <div class="cta-note">7-day free trial · No credit card · Cancel anytime</div>
 
   <!-- Live mockup: Stripe-style table -->
-  <div class="mockup">
+  <div class="mockup" style="margin-top:28px;">
     <div class="bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
     <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$49.00</span><span class="tag rev">Revenue Recognition</span></div>
     <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$129.00</span><span class="tag rev">Revenue Recognition</span></div>
@@ -165,12 +171,6 @@ export function setupWebUI(app, BASE_URL) {
     <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;border-bottom:1px solid #bbf7d0;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$87.50</span><span class="tag new">Synced by Bridge</span></div>
     <div class="highlight-row"><div class="row"><span class="src" style="font-weight:600;">Total visible in Stripe</span><span class="amt">$297.50</span><span class="tag rev">Includes PayPal</span></div></div>
   </div>
-
-  <div class="cta-row">
-    <a href="#setup" class="btn btn-primary">Start free trial →</a>
-    <a href="#how" class="btn btn-outline">See how</a>
-  </div>
-  <div class="cta-note">7-day free trial · No credit card · Cancel anytime</div>
 </div>
 
 <!-- ════════════════ WHAT IT DOES (3-second clarity) ════════════════ -->
@@ -380,10 +380,11 @@ export function setupWebUI(app, BASE_URL) {
       if (!r.ok) throw new Error(d.error || 'Registration failed');
       API_KEY = d.apiKey;
       localStorage.setItem('bridge_api_key', API_KEY);
+      // Skip API key display — go straight to configure
       document.getElementById('api-key-display').textContent = d.apiKey;
       document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
-      document.getElementById('s-apikey').classList.add('active');
-      document.getElementById('s-apikey').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('s-configure').classList.add('active');
+      document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
       document.getElementById('error-register').textContent = e.message;
     } finally {
