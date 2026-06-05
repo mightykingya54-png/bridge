@@ -19,8 +19,5 @@
     "node-cron": "^3.0.3",
     "pg": "^8.21.0",
     "stripe": "^17.0.0"
-  },
-  "devDependencies": {
-    "@railway/cli": "^4.66.1"
   }
 }

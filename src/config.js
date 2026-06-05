@@ -19,7 +19,7 @@ export const config = {
     secretKey: process.env.STRIPE_SECRET_KEY || '', // optional now
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     priceId: process.env.STRIPE_PRICE_ID || 'price_1TerCLCYeLNgFTf8sASPUBGN',
-    clientId: process.env.STRIPE_CLIENT_ID || '',
+    clientId: process.env.STRIPE_CLIENT_ID || 'ca_UeE3JQaWHr8NVoAicSPISj1C8dToZuV2',
   },
   paypal: {
     clientId: process.env.PAYPAL_CLIENT_ID || '',
