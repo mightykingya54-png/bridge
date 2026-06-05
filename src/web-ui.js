@@ -1,6 +1,6 @@
 /**
- * Web UI — Landing page + setup wizard served from the Express backend.
- * Uses buyer psychology: pain → agitation → solution → proof → pricing.
+ * Web UI — Landing page + setup wizard.
+ * Core principle: every visitor must understand what Bridge does in ≤ 3 seconds.
  */
 export function setupWebUI(app, BASE_URL) {
   app.get('/app', (req, res) => {
@@ -9,439 +9,363 @@ export function setupWebUI(app, BASE_URL) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bridge — PayPal sync for Stripe Revenue Recognition</title>
+  <title>Bridge — Sync PayPal to Stripe</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #fff; color: #0f172a; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 640px; margin: 0 auto; padding: 0 24px; }
 
-    .container { max-width: 680px; margin: 0 auto; padding: 0 24px; }
-
-    /* ── Navigation ── */
-    .nav { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; max-width: 960px; margin: 0 auto; }
-    .nav-brand { font-size: 20px; font-weight: 700; color: #0f172a; text-decoration: none; display: flex; align-items: center; gap: 8px; }
-    .nav-cta { background: #0f172a; color: white; padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: background 0.2s; }
-    .nav-cta:hover { background: #1e293b; }
+    /* ── Nav ── */
+    .nav { display: flex; align-items: center; gap: 16px; padding: 14px 24px; max-width: 960px; margin: 0 auto; }
+    .nav .brand { font-weight: 800; font-size: 18px; color: #0f172a; margin-right: auto; }
+    .nav a { font-size: 14px; font-weight: 500; color: #475569; text-decoration: none; }
+    .nav a:hover { color: #0f172a; }
+    .nav .btn-sm { background: #0f172a; color: #fff !important; padding: 6px 18px; border-radius: 8px; font-weight: 600; }
 
     /* ── Hero ── */
-    .hero { padding: 80px 0 40px; text-align: center; }
-    .hero-badge { display: inline-block; background: #eef2ff; color: #4338ca; font-size: 13px; font-weight: 600; padding: 4px 14px; border-radius: 20px; margin-bottom: 20px; letter-spacing: 0.01em; }
-    .hero h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 16px; color: #0f172a; }
-    .hero h1 .highlight { background: linear-gradient(135deg, #4338ca, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .hero p { font-size: clamp(16px, 2vw, 19px); color: #475569; max-width: 520px; margin: 0 auto 24px; }
-    .hero-visual { background: linear-gradient(135deg, #eef2ff, #e0e7ff); border-radius: 16px; padding: 40px 24px; margin: 32px auto 0; max-width: 560px; position: relative; border: 1px solid #c7d2fe; }
-    .hero-visual .comparison { display: flex; gap: 16px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
-    .hero-visual .col { flex: 1; min-width: 180px; text-align: center; }
-    .hero-visual .col-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; color: #6366f1; }
-    .hero-visual .col-before { background: white; border-radius: 10px; padding: 20px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-    .hero-visual .col-after { background: #0f172a; border-radius: 10px; padding: 20px 16px; box-shadow: 0 4px 12px rgba(99,102,241,0.2); }
-    .hero-visual .col-after .col-label { color: #a5b4fc; }
-    .hero-visual .revenue-item { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
-    .hero-visual .col-after .revenue-item { border-color: #334155; color: #cbd5e1; }
-    .hero-visual .revenue-item:last-child { border-bottom: none; }
-    .hero-visual .revenue-item .label { color: #64748b; }
-    .hero-visual .col-after .revenue-item .label { color: #94a3b8; }
-    .hero-visual .revenue-item .amount { font-weight: 600; color: #0f172a; }
-    .hero-visual .col-after .revenue-item .amount { color: #e2e8f0; }
-    .hero-visual .badge-new { display: inline-block; background: #22c55e; color: white; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 10px; margin-left: 6px; }
-    .hero-visual .arrow-icon { font-size: 28px; color: #6366f1; align-self: center; padding: 0 4px; }
+    .hero { padding: 64px 0 48px; text-align: center; }
+    .hero .badge { display: inline-block; background: #eef2ff; color: #4338ca; font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 20px; margin-bottom: 20px; letter-spacing: 0.01em; }
+    .hero h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 12px; color: #0f172a; }
+    .hero h1 .accent { color: #6366f1; }
+    .hero .sub { font-size: clamp(17px, 2vw, 20px); color: #475569; max-width: 480px; margin: 0 auto 28px; font-weight: 400; line-height: 1.4; }
+    .hero .mockup { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; max-width: 480px; margin: 0 auto; text-align: left; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+    .hero .mockup .bar { display: flex; gap: 6px; margin-bottom: 14px; }
+    .hero .mockup .bar span { width: 10px; height: 10px; border-radius: 50%; }
+    .hero .mockup .bar .r { background: #ef4444; }
+    .hero .mockup .bar .y { background: #eab308; }
+    .hero .mockup .bar .g { background: #22c55e; }
+    .hero .mockup .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .hero .mockup .row:last-child { border-bottom: none; }
+    .hero .mockup .row .src { color: #64748b; display: flex; align-items: center; gap: 8px; }
+    .hero .mockup .row .src .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .hero .mockup .row .src .dot.s { background: #6366f1; }
+    .hero .mockup .row .src .dot.p { background: #2563eb; }
+    .hero .mockup .row .amt { font-weight: 600; }
+    .hero .mockup .row .tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 6px; }
+    .hero .mockup .row .tag.new { background: #d1fae5; color: #065f46; }
+    .hero .mockup .row .tag.rev { background: #eef2ff; color: #4338ca; }
+    .hero .highlight-row { background: #f0fdf4; margin: 0 -24px -20px; padding: 16px 24px; border-top: 1px solid #bbf7d0; }
+    .hero .highlight-row .row { border-bottom: none; font-weight: 600; }
+    .hero .highlight-row .row .amt { color: #059669; font-size: 16px; }
 
-    .cta-group { margin-top: 32px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .btn-primary { display: inline-block; background: #0f172a; color: white; padding: 16px 36px; border-radius: 10px; font-size: 16px; font-weight: 700; text-decoration: none; transition: all 0.2s; border: none; cursor: pointer; font-family: inherit; line-height: 1.2; }
+    .cta-row { margin-top: 28px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; transition: all 0.2s; font-family: inherit; line-height: 1.2; border: none; cursor: pointer; }
+    .btn-primary { background: #0f172a; color: #fff; }
     .btn-primary:hover { background: #1e293b; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(15,23,42,0.15); }
-    .btn-secondary { display: inline-block; background: transparent; color: #0f172a; padding: 16px 36px; border-radius: 10px; font-size: 16px; font-weight: 600; text-decoration: none; border: 1.5px solid #e2e8f0; transition: all 0.2s; cursor: pointer; font-family: inherit; line-height: 1.2; }
-    .btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
-    .cta-micro { font-size: 13px; color: #64748b; margin-top: 10px; }
+    .btn-outline { background: transparent; color: #0f172a; border: 1.5px solid #e2e8f0; }
+    .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+    .cta-note { font-size: 13px; color: #64748b; margin-top: 10px; }
 
     /* ── Sections ── */
-    section { padding: 64px 0; }
-    .section-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6366f1; margin-bottom: 8px; }
-    section h2 { font-size: clamp(24px, 3.5vw, 32px); font-weight: 800; letter-spacing: -0.015em; margin-bottom: 16px; color: #0f172a; line-height: 1.2; }
-    section h2 .sub { font-weight: 400; color: #475569; font-size: clamp(16px, 2vw, 18px); display: block; margin-top: 8px; letter-spacing: 0; }
-    section p { font-size: 16px; color: #475569; max-width: 520px; }
+    section { padding: 48px 0; }
+    section h2 { font-size: clamp(22px, 3vw, 28px); font-weight: 800; letter-spacing: -0.015em; margin-bottom: 20px; color: #0f172a; text-align: center; }
+    section h2 .sub { font-weight: 400; color: #475569; font-size: 16px; display: block; margin-top: 6px; max-width: 440px; margin-left: auto; margin-right: auto; }
 
-    /* ── Pain section ── */
-    .pain { background: #fff; border-radius: 16px; padding: 40px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; margin: 0 auto; max-width: 600px; }
-    .pain-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f8fafc; align-items: flex-start; }
-    .pain-item:last-child { border-bottom: none; }
-    .pain-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-    .pain-icon.red { background: #fef2f2; }
-    .pain-icon.green { background: #f0fdf4; }
-    .pain-text { font-size: 15px; color: #334155; }
-    .pain-text strong { color: #0f172a; }
+    /* ── Steps ── */
+    .steps { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+    .step { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 24px; flex: 1; min-width: 170px; text-align: center; }
+    .step .num { width: 32px; height: 32px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+    .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: #0f172a; }
+    .step p { font-size: 13px; color: #64748b; max-width: 100%; }
 
-    /* ── How it works ── */
-    .steps-grid { display: flex; gap: 20px; margin-top: 32px; flex-wrap: wrap; }
-    .step-card { flex: 1; min-width: 180px; background: white; border-radius: 12px; padding: 28px 24px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-    .step-number { display: inline-block; width: 32px; height: 32px; border-radius: 8px; background: #eef2ff; color: #4338ca; font-weight: 700; font-size: 14px; text-align: center; line-height: 32px; margin-bottom: 14px; }
-    .step-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
-    .step-card p { font-size: 14px; color: #64748b; margin-bottom: 0; max-width: 100%; }
-    .step-card .step-sub { font-size: 12px; color: #94a3b8; margin-top: 8px; }
+    /* ── Feature grid ── */
+    .grid { display: flex; flex-wrap: wrap; gap: 12px; max-width: 480px; margin: 0 auto; }
+    .grid-item { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 200px; display: flex; align-items: center; gap: 12px; font-size: 14px; color: #1e293b; }
 
-    /* ── Proof / Stats ── */
-    .proof-bar { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 32px 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin: 32px auto 0; max-width: 500px; }
-    .proof-stat { text-align: center; }
-    .proof-stat .number { font-size: 28px; font-weight: 800; color: #0f172a; }
-    .proof-stat .label { font-size: 13px; color: #64748b; }
+    /* ── Pain / comparison ── */
+    .compare { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .compare-card { flex: 1; min-width: 220px; border-radius: 12px; padding: 28px 24px; }
+    .compare-card.before { background: #fef2f2; border: 1px solid #fecaca; }
+    .compare-card.after { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .compare-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+    .compare-card ul { list-style: none; }
+    .compare-card li { font-size: 14px; padding: 6px 0; color: #334155; display: flex; gap: 8px; align-items: flex-start; }
 
     /* ── Pricing ── */
-    .pricing-card { background: white; border-radius: 16px; padding: 40px 32px; border: 2px solid #e2e8f0; max-width: 400px; margin: 24px auto 0; text-align: center; transition: border-color 0.2s; }
-    .pricing-card:hover { border-color: #6366f1; }
-    .pricing-card .price { font-size: 44px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
-    .pricing-card .price span { font-size: 16px; font-weight: 400; color: #64748b; }
-    .pricing-card .perks { margin: 20px 0; }
-    .pricing-card .perk { padding: 8px 0; font-size: 15px; color: #334155; }
-    .pricing-card .perk::before { content: '✓ '; color: #22c55e; font-weight: 700; }
-    .pricing-card .perk.muted { color: #94a3b8; }
-    .pricing-card .perk.muted::before { content: '— '; color: #94a3b8; }
-
-    .guarantee { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 16px; font-size: 14px; color: #475569; }
-    .guarantee .icon { font-size: 20px; }
+    .pricing { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 36px 32px; max-width: 360px; margin: 0 auto; text-align: center; }
+    .pricing .price { font-size: 42px; font-weight: 800; color: #0f172a; }
+    .pricing .price span { font-size: 16px; font-weight: 400; color: #64748b; }
+    .pricing ul { list-style: none; margin: 18px 0; }
+    .pricing li { padding: 5px 0; font-size: 14px; color: #475569; }
+    .pricing li::before { content: '✓ '; color: #22c55e; font-weight: 700; }
+    .pricing .guarantee { font-size: 13px; color: #64748b; margin-top: 14px; }
 
     /* ── FAQ ── */
-    .faq-list { max-width: 520px; margin: 24px auto 0; }
-    .faq-item { border-bottom: 1px solid #f1f5f9; padding: 16px 0; }
-    .faq-q { font-size: 15px; font-weight: 600; color: #0f172a; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-    .faq-q .toggle { font-size: 18px; color: #94a3b8; transition: transform 0.2s; }
-    .faq-q.open .toggle { transform: rotate(45deg); }
-    .faq-a { font-size: 14px; color: #475569; padding-top: 8px; display: none; }
+    .faq { max-width: 480px; margin: 0 auto; }
+    .faq-item { border-bottom: 1px solid #f1f5f9; padding: 14px 0; }
+    .faq-q { font-size: 14px; font-weight: 600; color: #0f172a; cursor: pointer; display: flex; justify-content: space-between; }
+    .faq-a { font-size: 13px; color: #64748b; padding-top: 6px; display: none; }
     .faq-a.open { display: block; }
 
-    /* ── Footer ── */
-    .footer { text-align: center; padding: 40px 0; font-size: 13px; color: #94a3b8; }
-    .footer a { color: #6366f1; text-decoration: none; }
-
-    /* ── Setup Wizard (below fold, same as before) ── */
-    .wizard-section { padding: 64px 0 80px; }
-    .wizard-section .divider { text-align: center; margin-bottom: 32px; }
-    .wizard-section .divider span { background: #f8fafc; padding: 0 16px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; }
-    .wizard-section .divider-line { border: none; border-top: 1px solid #e2e8f0; margin: 0; }
-    .wizard-card { background: white; border-radius: 12px; padding: 32px; margin-bottom: 16px; border: 1px solid #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-    .wizard-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
-    .wizard-card p { font-size: 14px; color: #64748b; margin-bottom: 16px; max-width: 100%; }
-    .wizard-card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #0f172a; }
-    .wizard-card input { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 14px; font-family: inherit; transition: border-color 0.15s; }
-    .wizard-card input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-    .wizard-card button { background: #0f172a; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
-    .wizard-card button:hover { background: #1e293b; }
-    .wizard-card button:disabled { background: #94a3b8; cursor: not-allowed; }
-    .wizard-card .btn-green { background: #059669; }
-    .wizard-card .btn-green:hover { background: #047857; }
-    .wizard-card .btn-red { background: #dc2626; }
-    .wizard-card .btn-red:hover { background: #b91c1c; }
+    /* ── Wizard ── */
+    .wiz { margin-top: 48px; padding: 48px 0 64px; }
+    .wiz .divider { text-align: center; margin-bottom: 28px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+    .card h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; text-align: left; }
+    .card p { font-size: 14px; color: #64748b; margin-bottom: 16px; }
+    .card label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .card input { width: 100%; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; margin-bottom: 14px; font-family: inherit; transition: border-color 0.15s; }
+    .card input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+    .card button { background: #0f172a; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .card button:hover { background: #1e293b; }
+    .card button:disabled { background: #94a3b8; cursor: not-allowed; }
+    .card .green { background: #059669; }
+    .card .green:hover { background: #047857; }
+    .card .red { background: #dc2626; }
+    .card .red:hover { background: #b91c1c; }
+    .card pre { background: #f8fafc; padding: 10px 14px; border-radius: 8px; font-size: 12px; border: 1px solid #f1f5f9; overflow-x: auto; word-break: break-all; }
+    .step-view { display: none; }
+    .step-view.active { display: block; }
     .badge { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
     .badge-ok { background: #d1fae5; color: #065f46; }
     .badge-no { background: #fee2e2; color: #991b1b; }
-    .error { color: #dc2626; font-size: 13px; margin-bottom: 8px; }
-    .success { color: #059669; font-size: 13px; margin-bottom: 8px; }
-    .step { display: none; }
-    .step.active { display: block; }
-    .wizard-card pre { background: #f8fafc; padding: 10px 14px; border-radius: 8px; font-size: 12px; border: 1px solid #f1f5f9; overflow-x: auto; word-break: break-all; }
-
-    @media (max-width: 600px) {
-      .hero { padding: 48px 0 24px; }
-      section { padding: 40px 0; }
-      .hero-visual { padding: 24px 16px; }
-      .hero-visual .comparison { flex-direction: column; }
-      .hero-visual .arrow-icon { transform: rotate(90deg); }
-      .wizard-section { padding: 40px 0; }
-      .nav-cta { display: none; }
-      .pricing-card { padding: 28px 20px; }
+    .error { color: #dc2626; font-size: 13px; }
+    .success { color: #059669; font-size: 13px; }
+    .footer { text-align: center; padding: 32px 0; font-size: 13px; color: #94a3b8; }
+    .footer a { color: #6366f1; text-decoration: none; }
+    hr { border: none; border-top: 1px solid #f1f5f9; margin: 20px 0; }
+    .text-center { text-align: center; }
+    .mt-0 { margin-top: 0; }
+    .mb-0 { margin-bottom: 0; }
+    @media (max-width: 520px) {
+      .hero { padding: 36px 0 28px; }
+      section { padding: 28px 0; }
+      .step { min-width: 100%; }
+      .grid-item { min-width: 100%; }
+      .compare-card { min-width: 100%; }
+      .wiz { padding: 28px 0 40px; }
+      .mockup .row { font-size: 12px; flex-wrap: wrap; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── Navigation ── -->
 <div class="nav">
-  <a href="/app" class="nav-brand">🌉 Bridge</a>
-  <a href="#setup" class="nav-cta">Start Free Trial</a>
+  <span class="brand">🌉 Bridge</span>
+  <a href="#how">How it works</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#setup" class="btn-sm">Start free</a>
 </div>
 
-<!-- ── HERO ── -->
 <div class="container">
-  <div class="hero">
-    <div class="hero-badge">⚡ Official Stripe Partner API</div>
-    <h1>Your Stripe dashboard should show <span class="highlight">all</span> your revenue.<br/>Not just Stripe payments.</h1>
-    <p>If you accept PayPal alongside Stripe, those transactions are invisible in Revenue Recognition. Bridge pushes every PayPal transaction into Stripe automatically. One dashboard. Complete picture.</p>
 
-    <!-- Visual comparison: Before vs After -->
-    <div class="hero-visual">
-      <div class="comparison">
-        <div class="col">
-          <div class="col-label">❌ Without Bridge</div>
-          <div class="col-before">
-            <div class="revenue-item"><span class="label">Stripe payments</span><span class="amount">$12,430</span></div>
-            <div class="revenue-item"><span class="label">PayPal payments</span><span class="amount" style="color:#94a3b8;">?</span></div>
-            <div class="revenue-item"><span class="label" style="color:#dc2626;">Missing revenue</span><span class="amount" style="color:#dc2626;">-$3,210</span></div>
-          </div>
-        </div>
-        <div class="arrow-icon">→</div>
-        <div class="col">
-          <div class="col-label">✅ With Bridge</div>
-          <div class="col-after">
-            <div class="revenue-item"><span class="label">Stripe payments</span><span class="amount">$12,430</span></div>
-            <div class="revenue-item"><span class="label">PayPal payments</span><span class="amount" style="color:#22c55e;">$3,210 <span class="badge-new">NEW</span></span></div>
-            <div class="revenue-item"><span class="label" style="color:#22c55e;">Total revenue</span><span class="amount" style="color:#22c55e;font-size:15px;">$15,640</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
+<!-- ════════════════ HERO ════════════════ -->
+<div class="hero">
+  <div class="badge">Syncs with Stripe’s official Payment Records API</div>
+  <h1>PayPal payments now show up<br/>in your <span class="accent">Stripe dashboard</span>.</h1>
+  <p class="sub">If you use Stripe + PayPal, Bridge automatically pushes every PayPal transaction into Stripe as a Payment Record. They appear in Revenue Recognition, Sigma, and all your Stripe reports.</p>
 
-    <div class="cta-group">
-      <a href="#setup" class="btn-primary">Start Free Trial →</a>
-      <a href="#how-it-works" class="btn-secondary">How It Works</a>
-    </div>
-    <div class="cta-micro">7-day free trial · No credit card required · Cancel anytime</div>
+  <!-- Live mockup: Stripe-style table -->
+  <div class="mockup">
+    <div class="bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$49.00</span><span class="tag rev">Revenue Recognition</span></div>
+    <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$129.00</span><span class="tag rev">Revenue Recognition</span></div>
+    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$32.00</span><span class="tag new">Synced by Bridge</span></div>
+    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;border-bottom:1px solid #bbf7d0;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$87.50</span><span class="tag new">Synced by Bridge</span></div>
+    <div class="highlight-row"><div class="row"><span class="src" style="font-weight:600;">Total visible in Stripe</span><span class="amt">$297.50</span><span class="tag rev">Includes PayPal</span></div></div>
   </div>
 
-  <!-- ── Social Proof ── -->
-  <div class="proof-bar">
-    <div class="proof-stat"><div class="number" id="stat-synced">2</div><div class="label">transactions synced</div></div>
-    <div class="proof-stat"><div class="number">2</div><div class="label">payment processors</div></div>
-    <div class="proof-stat"><div class="number">7</div><div class="label">day free trial</div></div>
+  <div class="cta-row">
+    <a href="#setup" class="btn btn-primary">Start free trial →</a>
+    <a href="#how" class="btn btn-outline">See how</a>
+  </div>
+  <div class="cta-note">7-day free trial · No credit card · Cancel anytime</div>
+</div>
+
+<!-- ════════════════ WHAT IT DOES (3-second clarity) ════════════════ -->
+<section id="how">
+  <h2>It does one thing.<br/><span class="sub">PayPal → Stripe. Automatically. Every day.</span></h2>
+  <div class="steps">
+    <div class="step">
+      <div class="num">1</div>
+      <h3>Connect Stripe</h3>
+      <p>Paste your Stripe secret key. Bridge uses Stripe’s official API.</p>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <h3>Connect PayPal</h3>
+      <p>Paste your PayPal API credentials. Read-only access.</p>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <h3>Syncs daily</h3>
+      <p>New PayPal transactions appear in Stripe Revenue Recognition automatically.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ BEFORE vs AFTER ════════════════ -->
+<section>
+  <h2>What changes?<br/><span class="sub">Your Stripe reports finally show everything.</span></h2>
+  <div class="compare">
+    <div class="compare-card before">
+      <h3>❌ Before Bridge</h3>
+      <ul>
+        <li>🔴 PayPal revenue missing from Stripe</li>
+        <li>🔴 Manual CSV downloads each month</li>
+        <li>🔴 Spreadsheet reconciliation errors</li>
+        <li>🔴 Incomplete Revenue Recognition reports</li>
+      </ul>
+    </div>
+    <div class="compare-card after">
+      <h3>✅ After Bridge</h3>
+      <ul>
+        <li>🟢 PayPal payments in Stripe dashboard</li>
+        <li>🟢 Automatic daily sync — no manual work</li>
+        <li>🟢 Revenue Recognition includes all revenue</li>
+        <li>🟢 Sigma reports reflect actual totals</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FEATURES ════════════════ -->
+<section>
+  <h2>Works with the tools you already use.</h2>
+  <div class="grid">
+    <div class="grid-item">📊 Revenue Recognition</div>
+    <div class="grid-item">📋 Sigma reports</div>
+    <div class="grid-item">💰 Payout reconciliation</div>
+    <div class="grid-item">📈 Stripe Dashboard</div>
+    <div class="grid-item">🔍 Audit logs</div>
+    <div class="grid-item">🔄 Refund sync</div>
+  </div>
+</section>
+
+<!-- ════════════════ PRICING ════════════════ -->
+<section id="pricing">
+  <h2>Flat $49/month.<br/><span class="sub">No per-transaction fees. No hidden costs.</span></h2>
+  <div class="pricing">
+    <div class="price">$49 <span>/ month</span></div>
+    <ul>
+      <li>Unlimited transactions</li>
+      <li>Automatic daily syncs</li>
+      <li>All payment processors</li>
+      <li>Refund syncing</li>
+      <li>Cancel anytime</li>
+    </ul>
+    <a href="#setup" class="btn btn-primary" style="display:block;text-align:center;">Start 7-day free trial</a>
+    <div class="guarantee">🛡️ No credit card required</div>
+  </div>
+</section>
+
+<!-- ════════════════ FAQ ════════════════ -->
+<section>
+  <h2>Questions?<br/><span class="sub">Probably answered here.</span></h2>
+  <div class="faq">
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">What exactly does Bridge do? <span style="color:#94a3b8;">+</span></div>
+      <div class="faq-a">It reads PayPal transactions and writes them into Stripe as Payment Records. That's it. They show up in Revenue Recognition, Sigma, and all Stripe reports alongside your Stripe-native payments.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Is it secure? <span style="color:#94a3b8;">+</span></div>
+      <div class="faq-a">Bridge only reads PayPal metadata (amount, date, currency). No customer PII, no card data, no addresses. Credentials are encrypted. Strictly read-only access.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Do I need to be technical? <span style="color:#94a3b8;">+</span></div>
+      <div class="faq-a">You need your Stripe secret key and PayPal API credentials. If you can copy-paste, you can set it up in under 2 minutes.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Can I try before paying? <span style="color:#94a3b8;">+</span></div>
+      <div class="faq-a">Yes. 7-day free trial. No credit card. If you don't subscribe, sync pauses. Your data stays safe.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FINAL CTA ════════════════ -->
+<section class="text-center" style="padding:24px 0 40px;">
+  <h2 class="mb-0">Stop exporting PayPal CSVs.<br/><span class="sub">Let Bridge do it.</span></h2>
+  <div class="cta-row" style="margin-top:20px;">
+    <a href="#setup" class="btn btn-primary">Start free trial →</a>
+  </div>
+  <div class="cta-note">7-day free trial · No credit card · Cancel anytime</div>
+</section>
+
+<!-- ════════════════ SETUP WIZARD ════════════════ -->
+<hr />
+<div class="wiz" id="setup">
+  <div class="divider">↓ Get started — free for 7 days</div>
+
+  <div class="card step-view active" id="s-register">
+    <h2>Create your account</h2>
+    <p>No credit card required. Trial starts now.</p>
+    <label>Business name (optional)</label>
+    <input type="text" id="display-name" placeholder="My Business" />
+    <button id="btn-register" onclick="register()">Start free trial →</button>
+    <div id="error-register" class="error" style="margin-top:8px;"></div>
   </div>
 
-  <!-- ── THE PAIN ── -->
-  <section id="pain">
-    <div class="section-label">The Problem</div>
-    <h2>Your revenue picture has a blind spot.<br><span class="sub">Stripe Revenue Recognition only sees Stripe transactions. Every PayPal payment is invisible.</span></h2>
-    <div class="pain">
-      <div class="pain-item">
-        <div class="pain-icon red">😤</div>
-        <div class="pain-text"><strong>Monthly PayPal CSV exports.</strong> You log into PayPal, download settlement reports, and manually reconcile them against Stripe. Every. Single. Month.</div>
-      </div>
-      <div class="pain-item">
-        <div class="pain-icon red">😰</div>
-        <div class="pain-text"><strong>Spreadsheet errors cost time and money.</strong> One wrong formula, one missing transaction, and your revenue reports are wrong. Your accountant catches it — after hours of backtracking.</div>
-      </div>
-      <div class="pain-item">
-        <div class="pain-icon red">😐</div>
-        <div class="pain-text"><strong>Your Stripe dashboard is incomplete.</strong> Revenue Recognition, Sigma reports, and your payout reconciliation all miss PayPal data. You're paying for tools that only see half your business.</div>
-      </div>
-      <div class="pain-item">
-        <div class="pain-icon green">✅</div>
-        <div class="pain-text"><strong>Bridge fixes this.</strong> Connect once. Every PayPal transaction is automatically pushed into Stripe as a Payment Record. Your dashboard finally shows everything.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── HOW IT WORKS ── -->
-  <section id="how-it-works">
-    <div class="section-label">How It Works</div>
-    <h2>Three steps. Set it once. Done.<br><span class="sub">No ongoing work. No manual exports. No spreadsheets.</span></h2>
-    <div class="steps-grid">
-      <div class="step-card">
-        <div class="step-number">1</div>
-        <h3>Connect Stripe</h3>
-        <p>Bridge uses Stripe's official API to create Payment Records for off-Stripe transactions.</p>
-        <div class="step-sub">Takes 30 seconds</div>
-      </div>
-      <div class="step-card">
-        <div class="step-number">2</div>
-        <h3>Connect PayPal</h3>
-        <p>Bridge reads your PayPal transaction history via the PayPal REST API.</p>
-        <div class="step-sub">Takes 30 seconds</div>
-      </div>
-      <div class="step-card">
-        <div class="step-number">3</div>
-        <h3>Sync runs automatically</h3>
-        <p>Every 24 hours, Bridge fetches new PayPal transactions and pushes them into Stripe. They appear in Revenue Recognition — automatically.</p>
-        <div class="step-sub">Zero ongoing work</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── FEATURES ── -->
-  <section>
-    <div class="section-label">What You Get</div>
-    <h2>Everything in Stripe, now with PayPal.<br><span class="sub">Your existing tools just started working harder.</span></h2>
-    <div class="pain" style="margin-top:24px;">
-      <div class="pain-item">
-        <div class="pain-icon green">📊</div>
-        <div class="pain-text"><strong>Revenue Recognition sees PayPal.</strong> ASC 606 and IFRS 15 reports now include all revenue — not just Stripe-native payments.</div>
-      </div>
-      <div class="pain-item">
-        <div class="pain-icon green">📋</div>
-        <div class="pain-text"><strong>Sigma reports are complete.</strong> Query all your payment data in one place. Your analytics finally reflect reality.</div>
-      </div>
-      <div class="pain-item">
-        <div class="pain-icon green">🔍</div>
-        <div class="pain-text"><strong>Payout reconciliation works.</strong> Match payouts from both processors against your bank statements without manual CSV matching.</div>
-      </div>
-      <div class="pain-item">
-        <div class="pain-icon green">🛡️</div>
-        <div class="pain-text"><strong>Read-only access.</strong> Bridge only reads PayPal transactions and writes Payment Records to Stripe. Your data never leaves your control.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── PRICING ── -->
-  <section id="pricing">
-    <div class="section-label">Pricing</div>
-    <h2>Less than one hour of manual reconciliation.<br><span class="sub">Bridge pays for itself in the first month.</span></h2>
-    <div class="pricing-card">
-      <div class="price">$49 <span>/ month</span></div>
-      <div class="perks">
-        <div class="perk">Unlimited transaction syncing</div>
-        <div class="perk">Automatic daily syncs</div>
-        <div class="perk">Stripe Revenue Recognition integration</div>
-        <div class="perk">Multiple processor support</div>
-        <div class="perk muted">No setup fees</div>
-        <div class="perk muted">Cancel anytime</div>
-      </div>
-      <a href="#setup" class="btn-primary" style="display:block;text-align:center;">Start 7-Day Free Trial</a>
-      <div class="guarantee">
-        <span class="icon">🛡️</span> No credit card required. Cancel in one click.
-      </div>
-    </div>
-  </section>
-
-  <!-- ── FAQ ── -->
-  <section>
-    <div class="section-label">FAQ</div>
-    <h2>Common questions.<br><span class="sub">If you're wondering, someone else already asked.</span></h2>
-    <div class="faq-list">
-      <div class="faq-item">
-        <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Is this secure? <span class="toggle">+</span></div>
-        <div class="faq-a">Bridge never stores your customers' PII or payment details. We only read PayPal transaction metadata (amount, date, currency) and write it to Stripe's Payment Records API. Your Stripe and PayPal credentials are encrypted at rest in PostgreSQL.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">What about refunds? <span class="toggle">+</span></div>
-        <div class="faq-a">Bridge can also push PayPal refunds into Stripe as negative Payment Records, so your revenue reports stay accurate. This happens automatically during sync.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Do I need to be technical? <span class="toggle">+</span></div>
-        <div class="faq-a">You'll need your Stripe secret key and PayPal API credentials. If you can copy-paste, you can set up Bridge in under 2 minutes. No code required.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">What happens after the trial? <span class="toggle">+</span></div>
-        <div class="faq-a">On day 8, sync pauses until you subscribe at $49/month. Your data stays safe. Subscribe, sync resumes. No data is ever deleted.</div>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Can I cancel anytime? <span class="toggle">+</span></div>
-        <div class="faq-a">Yes. One click. No calls. No forms. Your data stays for 30 days in case you return.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── FINAL CTA ── -->
-  <section style="text-align:center;padding:32px 0 48px;">
-    <h2 style="margin-bottom:8px;">Stop reconciling PayPal manually.<br/><span class="sub">Let Bridge do it. Start free.</span></h2>
-    <div class="cta-group" style="margin-top:24px;">
-      <a href="#setup" class="btn-primary">Start Free Trial →</a>
-    </div>
-    <div class="cta-micro">7-day free trial · No credit card · Cancel anytime</div>
-  </section>
-
-  <!-- ── ── ── ── ── ── ── ── ── ── ── ── ── ── -->
-  <!-- ── SETUP WIZARD (below the fold) ── ── ── ── ── ── -->
-  <!-- ── ── ── ── ── ── ── ── ── ── ── ── ── ── -->
-
-  <hr class="divider-line" />
-  <div class="wizard-section" id="setup">
-
-    <!-- Step 1: Register -->
-    <div class="wizard-card step active" id="step-register">
-      <h2>Create your free account</h2>
-      <p>No credit card required. Your 7-day trial starts now.</p>
-      <label for="display-name">Business name (optional)</label>
-      <input type="text" id="display-name" placeholder="My Business" />
-      <button id="btn-register" onclick="register()">Start Free Trial →</button>
-      <div id="error-register" class="error" style="margin-top:8px;"></div>
-    </div>
-
-    <!-- Step 2: API Key shown -->
-    <div class="wizard-card step" id="step-apikey">
-      <h2>Your API key is ready</h2>
-      <p>Save this key — you'll use it once to connect your accounts.</p>
-      <pre id="api-key-display"></pre>
-      <button onclick="showConfigure()" style="margin-top:8px">Connect My Accounts →</button>
-    </div>
-
-    <!-- Step 3: Configure -->
-    <div class="wizard-card step" id="step-configure">
-      <h2>Connect your accounts</h2>
-      <p>Enter your Stripe and PayPal credentials. <a href="https://docs.stripe.com/keys" target="_blank" rel="noopener" style="color:#6366f1;">Where do I find these?</a></p>
-      <label for="stripe-key">Stripe Secret Key</label>
-      <input type="password" id="stripe-key" placeholder="sk_live_..." />
-      <label for="paypal-client-id">PayPal Client ID</label>
-      <input type="text" id="paypal-client-id" placeholder="A..." />
-      <label for="paypal-client-secret">PayPal Client Secret</label>
-      <input type="password" id="paypal-client-secret" placeholder="E..." />
-      <button id="btn-configure" onclick="configure()">Save & Connect</button>
-      <div id="error-configure" class="error" style="margin-top:8px;"></div>
-      <div id="success-configure" class="success" style="margin-top:8px;"></div>
-    </div>
-
-    <!-- Step 4: Dashboard -->
-    <div class="wizard-card step" id="step-dashboard">
-      <h2>Dashboard</h2>
-      <div id="status-display">
-        <p>Stripe: <span id="stripe-status" class="badge badge-no">Not connected</span>&emsp;PayPal: <span id="paypal-status" class="badge badge-no">Not connected</span></p>
-      </div>
-      <div style="margin:16px 0;">
-        <p style="font-size:14px;margin-bottom:4px;">Synced: <strong><span id="sync-count">0</span></strong> transactions &middot; Last sync: <span id="sync-time" style="color:#64748b;">Never</span></p>
-      </div>
-      <button id="btn-sync" onclick="syncNow()">Sync Now</button>
-      <div id="error-sync" class="error" style="margin-top:8px;"></div>
-      <div id="success-sync" class="success" style="margin-top:8px;"></div>
-      <hr style="margin:20px 0;border:none;border-top:1px solid #f1f5f9;" />
-
-      <!-- Billing -->
-      <div id="billing-display">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;">Plan</h3>
-        <p>Status: <span id="sub-status" class="badge badge-ok">Active</span></p>
-        <p id="sub-detail" style="font-size:13px;color:#64748b;margin-bottom:12px;">7-day free trial</p>
-        <button id="btn-subscribe" onclick="subscribe()" class="btn-green">Subscribe — $49/mo</button>
-        <button id="btn-manage-billing" onclick="manageBilling()" style="display:none;">Manage Billing</button>
-        <div id="error-billing" class="error" style="margin-top:4px;"></div>
-      </div>
-      <hr style="margin:20px 0;border:none;border-top:1px solid #f1f5f9;" />
-      <button onclick="resetAll()" class="btn-red">Reset & Start Over</button>
-    </div>
-
-    <p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:24px;">By registering, you agree to Bridge's terms of service.</p>
+  <div class="card step-view" id="s-apikey">
+    <h2>Your API key</h2>
+    <p>Save this — you'll use it once to connect your accounts.</p>
+    <pre id="api-key-display"></pre>
+    <button onclick="showCfg()" style="margin-top:6px">Connect accounts →</button>
   </div>
 
-  <div class="footer">
-    🌉 Bridge &mdash; Built by Yashoraj &middot; <a href="${BASE_URL}">Home</a>
+  <div class="card step-view" id="s-configure">
+    <h2>Connect your accounts</h2>
+    <p>Enter your credentials. <a href="https://docs.stripe.com/keys" target="_blank" style="color:#6366f1;">Where do I find these?</a></p>
+    <label>Stripe Secret Key</label>
+    <input type="password" id="stripe-key" placeholder="sk_live_..." />
+    <label>PayPal Client ID</label>
+    <input type="text" id="paypal-client-id" placeholder="A..." />
+    <label>PayPal Client Secret</label>
+    <input type="password" id="paypal-client-secret" placeholder="E..." />
+    <button id="btn-configure" onclick="configure()">Save & connect</button>
+    <div id="error-configure" class="error" style="margin-top:8px;"></div>
+    <div id="success-configure" class="success" style="margin-top:8px;"></div>
   </div>
+
+  <div class="card step-view" id="s-dashboard">
+    <h2>Dashboard</h2>
+    <p>Stripe: <span id="stripe-status" class="badge badge-no">Not connected</span> &nbsp;&middot;&nbsp; PayPal: <span id="paypal-status" class="badge badge-no">Not connected</span></p>
+    <p style="font-size:14px;">Synced: <strong><span id="sync-count">0</span></strong> · Last sync: <span id="sync-time" style="color:#64748b;">Never</span></p>
+    <button id="btn-sync" onclick="syncNow()" style="margin-top:4px;">Sync now</button>
+    <div id="error-sync" class="error" style="margin-top:8px;"></div>
+    <div id="success-sync" class="success" style="margin-top:8px;"></div>
+    <hr />
+    <div>
+      <p style="font-weight:600;margin-bottom:4px;">Plan</p>
+      <p style="font-size:13px;">Status: <span id="sub-status" class="badge badge-ok">Active</span> · <span id="sub-detail">7-day free trial</span></p>
+      <button id="btn-subscribe" onclick="subscribe()" class="green" style="margin-top:8px;">Subscribe — $49/mo</button>
+      <button id="btn-manage" onclick="manageBilling()" style="display:none;">Manage billing</button>
+      <div id="error-billing" class="error" style="margin-top:4px;"></div>
+    </div>
+    <hr />
+    <button onclick="resetAll()" class="red">Reset</button>
+  </div>
+</div>
+
+<div class="footer">🌉 Bridge · Built by Yashoraj · <a href="${BASE_URL}">Home</a></div>
 </div>
 
 <script>
   const API = '${BASE_URL}';
   let API_KEY = localStorage.getItem('bridge_api_key') || '';
 
-  // ── Smooth scroll for anchor links ──
+  // Smooth scroll for anchor links
   document.querySelectorAll('a[href^="#"]').forEach(a => {
     a.addEventListener('click', function(e) {
-      const href = this.getAttribute('href');
-      if (href === '#') return;
-      const target = document.querySelector(href);
-      if (target) {
-        e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth' });
-      }
+      const t = document.querySelector(this.getAttribute('href'));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
     });
   });
 
-  // ── Handle direct hash on load ──
   if (window.location.hash) {
     setTimeout(() => {
-      const target = document.querySelector(window.location.hash);
-      if (target) target.scrollIntoView({ behavior: 'smooth' });
+      const t = document.querySelector(window.location.hash);
+      if (t) t.scrollIntoView({ behavior: 'smooth' });
     }, 300);
   }
 
-  // ── Check if already registered ──
+  // Already registered?
   if (API_KEY) {
-    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-    document.getElementById('step-dashboard').classList.add('active');
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-dashboard').classList.add('active');
     loadDashboard();
   }
 
-  // ── Registration ──
   async function register() {
     const name = document.getElementById('display-name').value;
     document.getElementById('btn-register').disabled = true;
@@ -457,9 +381,9 @@ export function setupWebUI(app, BASE_URL) {
       API_KEY = d.apiKey;
       localStorage.setItem('bridge_api_key', API_KEY);
       document.getElementById('api-key-display').textContent = d.apiKey;
-      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-      document.getElementById('step-apikey').classList.add('active');
-      window.scrollTo({ top: document.getElementById('step-apikey').offsetTop - 40, behavior: 'smooth' });
+      document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+      document.getElementById('s-apikey').classList.add('active');
+      document.getElementById('s-apikey').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
       document.getElementById('error-register').textContent = e.message;
     } finally {
@@ -467,10 +391,10 @@ export function setupWebUI(app, BASE_URL) {
     }
   }
 
-  function showConfigure() {
-    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-    document.getElementById('step-configure').classList.add('active');
-    window.scrollTo({ top: document.getElementById('step-configure').offsetTop - 40, behavior: 'smooth' });
+  function showCfg() {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
   }
 
   async function configure() {
@@ -492,13 +416,13 @@ export function setupWebUI(app, BASE_URL) {
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Configuration failed');
-      document.getElementById('success-configure').textContent = '✅ Accounts connected!';
+      document.getElementById('success-configure').textContent = '✅ Connected!';
       setTimeout(() => {
-        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-        document.getElementById('step-dashboard').classList.add('active');
-        window.scrollTo({ top: document.getElementById('step-dashboard').offsetTop - 40, behavior: 'smooth' });
+        document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+        document.getElementById('s-dashboard').classList.add('active');
+        document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
         loadDashboard();
-      }, 1000);
+      }, 800);
     } catch (e) {
       document.getElementById('error-configure').textContent = e.message;
     } finally {
@@ -508,95 +432,53 @@ export function setupWebUI(app, BASE_URL) {
 
   async function loadDashboard() {
     try {
-      const r = await fetch(API + '/api/status', {
-        headers: { 'Authorization': 'Bearer ' + API_KEY },
-      });
+      const r = await fetch(API + '/api/status', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
-      if (d.stripe?.connected) {
-        document.getElementById('stripe-status').textContent = '✅ Connected';
-        document.getElementById('stripe-status').className = 'badge badge-ok';
-      }
-      if (d.paypal?.connected) {
-        document.getElementById('paypal-status').textContent = '✅ Connected';
-        document.getElementById('paypal-status').className = 'badge badge-ok';
-      }
+      document.getElementById('stripe-status').textContent = d.stripe?.connected ? '✅ Connected' : '❌ Not connected';
+      document.getElementById('stripe-status').className = 'badge ' + (d.stripe?.connected ? 'badge-ok' : 'badge-no');
+      document.getElementById('paypal-status').textContent = d.paypal?.connected ? '✅ Connected' : '❌ Not connected';
+      document.getElementById('paypal-status').className = 'badge ' + (d.paypal?.connected ? 'badge-ok' : 'badge-no');
       if (d.sync) {
         document.getElementById('sync-count').textContent = d.sync.totalSynced || 0;
-        // Update stat at top of page too
-        document.getElementById('stat-synced').textContent = d.sync.totalSynced || 0;
         document.getElementById('sync-time').textContent = d.sync.lastSyncAt ? new Date(d.sync.lastSyncAt).toLocaleDateString() : 'Never';
       }
-    } catch (e) {
-      console.error('Dashboard load failed:', e);
-    }
+    } catch (e) { console.error(e); }
 
     try {
-      const r = await fetch(API + '/api/subscription', {
-        headers: { 'Authorization': 'Bearer ' + API_KEY },
-      });
+      const r = await fetch(API + '/api/subscription', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const sub = await r.json();
       if (sub.needsAuth) return;
-
-      const statusEl = document.getElementById('sub-status');
-      const detailEl = document.getElementById('sub-detail');
-      const subBtn = document.getElementById('btn-subscribe');
-      const mgmtBtn = document.getElementById('btn-manage-billing');
-
+      const se = document.getElementById('sub-status'), sd = document.getElementById('sub-detail'), sb = document.getElementById('btn-subscribe'), sm = document.getElementById('btn-manage');
       if (sub.active) {
-        statusEl.textContent = '✅ Active';
-        statusEl.className = 'badge badge-ok';
-        if (sub.stripeSubscriptionId) {
-          detailEl.textContent = 'Subscription active.';
-          subBtn.style.display = 'none';
-          mgmtBtn.style.display = 'inline-block';
-        } else {
-          const trialEnd = new Date(sub.trialEnd);
-          detailEl.textContent = 'Trial expires ' + trialEnd.toLocaleDateString();
-          subBtn.style.display = 'inline-block';
-          mgmtBtn.style.display = 'none';
-        }
+        se.textContent = '✅ Active'; se.className = 'badge badge-ok';
+        if (sub.stripeSubscriptionId) { sd.textContent = 'Subscribed'; sb.style.display = 'none'; sm.style.display = 'inline-block'; }
+        else { sd.textContent = 'Trial ends ' + new Date(sub.trialEnd).toLocaleDateString(); sb.style.display = 'inline-block'; sm.style.display = 'none'; }
       } else {
-        statusEl.textContent = '⚠️ Expired';
-        statusEl.className = 'badge badge-no';
-        detailEl.textContent = 'Trial ended. Subscribe to continue syncing.';
-        subBtn.style.display = 'inline-block';
-        mgmtBtn.style.display = 'none';
+        se.textContent = '⚠️ Expired'; se.className = 'badge badge-no';
+        sd.textContent = 'Trial ended'; sb.style.display = 'inline-block'; sm.style.display = 'none';
       }
-    } catch (e) {
-      console.error('Subscription load failed:', e);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async function subscribe() {
     document.getElementById('error-billing').textContent = '';
     document.getElementById('btn-subscribe').disabled = true;
     try {
-      const r = await fetch(API + '/api/create-checkout', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + API_KEY },
-      });
+      const r = await fetch(API + '/api/create-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Checkout failed');
+      if (!r.ok) throw new Error(d.error);
       window.location.href = d.url;
-    } catch (e) {
-      document.getElementById('error-billing').textContent = e.message;
-      document.getElementById('btn-subscribe').disabled = false;
-    }
+    } catch (e) { document.getElementById('error-billing').textContent = e.message; document.getElementById('btn-subscribe').disabled = false; }
   }
 
   async function manageBilling() {
     document.getElementById('error-billing').textContent = '';
     try {
-      const r = await fetch(API + '/api/create-checkout', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + API_KEY },
-      });
+      const r = await fetch(API + '/api/create-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Portal failed');
+      if (!r.ok) throw new Error(d.error);
       window.location.href = d.url;
-    } catch (e) {
-      document.getElementById('error-billing').textContent = e.message;
-    }
+    } catch (e) { document.getElementById('error-billing').textContent = e.message; }
   }
 
   async function syncNow() {
@@ -604,30 +486,17 @@ export function setupWebUI(app, BASE_URL) {
     document.getElementById('error-sync').textContent = '';
     document.getElementById('success-sync').textContent = '';
     try {
-      const r = await fetch(API + '/api/sync', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + API_KEY },
-      });
+      const r = await fetch(API + '/api/sync', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
-      if (r.status === 402) {
-        document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required');
-        loadDashboard();
-        return;
-      }
-      if (!r.ok) throw new Error(d.error || 'Sync failed');
+      if (r.status === 402) { document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required'); loadDashboard(); return; }
+      if (!r.ok) throw new Error(d.error);
       document.getElementById('success-sync').textContent = '✅ Synced! ' + d.pushed + ' pushed, ' + d.skipped + ' skipped';
       loadDashboard();
-    } catch (e) {
-      document.getElementById('error-sync').textContent = e.message;
-    } finally {
-      document.getElementById('btn-sync').disabled = false;
-    }
+    } catch (e) { document.getElementById('error-sync').textContent = e.message; }
+    finally { document.getElementById('btn-sync').disabled = false; }
   }
 
-  function resetAll() {
-    localStorage.removeItem('bridge_api_key');
-    location.reload();
-  }
+  function resetAll() { localStorage.removeItem('bridge_api_key'); location.reload(); }
 </script>
 </body>
 </html>`);
