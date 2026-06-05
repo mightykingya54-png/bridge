@@ -737,18 +737,11 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.json({ message: 'Already subscribed', active: true });
     }
 
-    // Create a transaction with our monthly price
-    const transaction = await paddle.transactions.create({
-      items: [{ priceId: config.paddle.priceId, quantity: 1 }],
-      customData: { merchant_id: merchant.id },
-      checkout: {
-        url: `${BASE_URL}/app?checkout=success`,
-      },
-    });
-
-    // Return the transaction ID — frontend uses Paddle.Checkout.open() to show overlay
-    console.log(`✅ Merchant ${merchant.id}: Paddle checkout created (txn ${transaction.id})`);
-    res.json({ transactionId: transaction.id });
+    // Return the price ID — frontend uses Paddle.Checkout.open() with items directly.
+    // Paddle.js handles customer creation, payment, and subscription setup.
+    // The webhook will receive subscription.created with customData.merchant_id.
+    console.log(`✅ Merchant ${merchant.id}: Paddle checkout items ready (price: ${config.paddle.priceId})`);
+    res.json({ priceId: config.paddle.priceId });
   } catch (err) {
     res.status(500).json({ error: `Checkout error: ${err.message}` });
   }
@@ -788,16 +781,28 @@ app.post('/api/paddle-webhook', async (req, res) => {
 
     switch (event.event_type) {
       case 'subscription.created': {
-        // Find merchant by custom_data.merchant_id (set during checkout)
-        const merchantId = data.custom_data?.merchant_id;
-        if (merchantId) {
-          await updateSubscription(merchantId, {
-            paddleCustomerId: data.customer_id || null,
-            paddleSubscriptionId: data.id,
-            status: data.status || 'active',
-            tier: 'monthly',
-          });
-          console.log(`✅ Merchant ${merchantId}: Paddle subscribed (sub ${data.id})`);
+        // Find merchant by custom_data.merchant_id (set during checkout).
+        // merchant_id contains the merchant's API key, or their DB ID.
+        const merchantIdOrKey = data.custom_data?.merchant_id;
+        if (merchantIdOrKey) {
+          let merchant = null;
+          // Try to find by API key first (Paddle.js overlay passes API_KEY as merchant_id)
+          if (merchantIdOrKey.startsWith('brg_')) {
+            merchant = await getMerchantByApiKey(merchantIdOrKey);
+          } else {
+            merchant = await getMerchant(merchantIdOrKey);
+          }
+          if (merchant) {
+            await updateSubscription(merchant.id, {
+              paddleCustomerId: data.customer_id || null,
+              paddleSubscriptionId: data.id,
+              status: data.status || 'active',
+              tier: 'monthly',
+            });
+            console.log(`✅ Merchant ${merchant.id}: Paddle subscribed (sub ${data.id})`);
+          } else {
+            console.warn(`⚠️  subscription.created: could not find merchant for key/id: ${merchantIdOrKey}`);
+          }
         } else {
           console.warn('⚠️  subscription.created has no merchant_id in custom_data');
         }

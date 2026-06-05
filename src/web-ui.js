@@ -654,11 +654,13 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
       const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      if (d.transactionId) {
-        // Open Paddle checkout overlay
+      if (d.priceId) {
+        // Open Paddle checkout overlay with items directly
+        // Paddle.js handles customer creation, payment, and subscription setup
         if (typeof Paddle !== 'undefined' && Paddle.Checkout) {
           await Paddle.Checkout.open({
-            transactionId: d.transactionId,
+            items: [{ priceId: d.priceId, quantity: 1 }],
+            customData: { merchant_id: API_KEY },
             settings: {
               displayMode: 'overlay',
               theme: 'light',
