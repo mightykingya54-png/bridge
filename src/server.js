@@ -43,10 +43,11 @@ app.use(express.json());
 // auth for the Stripe App UI to show before registration.
 async function authRequired(req, res, next) {
   try {
-    // Skip auth for register endpoint, root status, and web UI
+    // Skip auth for register endpoint, root status, web UI, and Stripe webhook
     if (req.path === '/api/register' && req.method === 'POST') return next();
     if (req.path === '/' && req.method === 'GET') return next();
     if (req.path === '/app') return next();
+    if (req.path === '/api/stripe-webhook') return next();
 
     // Parse API key from Authorization header (for any method)
     const authHeader = req.headers.authorization || '';

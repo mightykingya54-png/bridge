@@ -2,7 +2,7 @@
   "$schema": "https://stripe.com/stripe-app.schema.json",
   "id": "com.bridge.payment-sync",
   "name": "Bridge",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "icon": "./bridge_icon_32.png",
   "ui_extension": {
     "views": [
@@ -20,6 +20,9 @@
     }
   },
   "extensions": null,
+  "allowed_redirect_uris": [
+    "https://bridge-production-ad61.up.railway.app/app"
+  ],
   "permissions": [
     {
       "permission": "payment_records_write",
