@@ -24,6 +24,7 @@ import {
   getMerchantByPaddleSubscriptionId,
   updateMerchantCredentials,
   getAllMerchants,
+  getAllMerchantsSummary,
   getState,
   initDatabase,
   getRecentErrors,
@@ -737,6 +738,70 @@ app.post('/api/paddle-webhook', async (req, res) => {
   } catch (err) {
     console.error('❌ Paddle webhook error:', err.message);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ── Admin endpoints (requires MASTER_API_KEY) ───────────────────
+/**
+ * GET /api/admin/merchants
+ * Returns a summary of all merchants (no sensitive data exposed).
+ * Requires Authorization: Bearer <MASTER_API_KEY>
+ */
+app.get('/api/admin/merchants', async (req, res) => {
+  if (!req.isMaster) {
+    return res.status(401).json({ error: 'Master API key required. Set MASTER_API_KEY env var.' });
+  }
+  try {
+    const merchants = await getAllMerchantsSummary();
+    res.json({
+      total: merchants.length,
+      merchants: merchants.map(m => ({
+        id: m.id,
+        displayName: m.display_name,
+        email: m.email || null,
+        stripeAccountId: m.stripe_account_id || null,
+        paddleSubscriptionId: m.paddle_subscription_id || null,
+        subscriptionStatus: m.subscription_status,
+        subscriptionTier: m.subscription_tier,
+        trialEnd: m.trial_end_at,
+        createdAt: m.created_at,
+        lastSyncAt: m.last_sync_at || null,
+      }))
+    });
+  } catch (err) {
+    console.error('❌ Admin merchants error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/stats
+ * Returns aggregate statistics.
+ */
+app.get('/api/admin/stats', async (req, res) => {
+  if (!req.isMaster) {
+    return res.status(401).json({ error: 'Master API key required.' });
+  }
+  try {
+    const merchants = await getAllMerchantsSummary();
+    const now = new Date();
+    const total = merchants.length;
+    const onTrial = merchants.filter(m =>
+      m.subscription_status === 'trial' && m.trial_end_at && new Date(m.trial_end_at) > now
+    ).length;
+    const subscribed = merchants.filter(m =>
+      m.subscription_status === 'active'
+    ).length;
+    const expired = merchants.filter(m =>
+      m.subscription_status === 'trial' && m.trial_end_at && new Date(m.trial_end_at) <= now
+    ).length;
+    const canceled = merchants.filter(m =>
+      m.subscription_status === 'canceled'
+    ).length;
+    res.json({ total, onTrial, subscribed, expired, canceled });
+  } catch (err) {
+    console.error('❌ Admin stats error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -462,11 +462,26 @@ export async function getMerchantByPaddleSubscriptionId(subscriptionId) {
 }
 
 /**
- * List all merchants.
+ * List all merchants (decrypted).
  */
 export async function getAllMerchants() {
   const { rows } = await query('SELECT * FROM merchants ORDER BY created_at DESC');
   return rows.map(decryptMerchant);
+}
+
+/**
+ * List all merchants with a summary view — no sensitive credential fields.
+ * Returns display_name, subscription status, trial dates, sync info.
+ */
+export async function getAllMerchantsSummary() {
+  const { rows } = await query(`SELECT
+    id, api_key, display_name, email,
+    subscription_status, subscription_tier,
+    trial_end_at, created_at, updated_at,
+    stripe_account_id, paddle_customer_id, paddle_subscription_id,
+    (SELECT MAX(last_sync_at) FROM sync_state WHERE merchant_id = merchants.id) as last_sync_at
+    FROM merchants ORDER BY created_at DESC`);
+  return rows;
 }
 
 /**
