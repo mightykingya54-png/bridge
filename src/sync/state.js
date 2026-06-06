@@ -176,6 +176,7 @@ export async function initDatabase() {
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free'`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS trial_end_at TIMESTAMP`);
     await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS stripe_account_id TEXT DEFAULT ''`);
+    await query(`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''`);
   } catch (e) {
     // Some Postgres versions don't support IF NOT EXISTS for columns — ignore
   }
@@ -475,7 +476,7 @@ export async function getAllMerchants() {
  */
 export async function getAllMerchantsSummary() {
   const { rows } = await query(`SELECT
-    id, api_key, display_name, email,
+    id, api_key, display_name, COALESCE(email, '') as email,
     subscription_status, subscription_tier,
     trial_end_at, created_at, updated_at,
     stripe_account_id, paddle_customer_id, paddle_subscription_id,
