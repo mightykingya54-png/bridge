@@ -798,7 +798,21 @@ app.get('/api/admin/stats', async (req, res) => {
     const canceled = merchants.filter(m =>
       m.subscription_status === 'canceled'
     ).length;
-    res.json({ total, onTrial, subscribed, expired, canceled });
+    const unconfigured = merchants.filter(m =>
+      m.subscription_status === 'trial' && !m.trial_end_at && !m.stripe_account_id
+    ).length;
+    const withStripe = merchants.filter(m => m.stripe_account_id).length;
+    const withPaddle = merchants.filter(m => m.paddle_subscription_id).length;
+    res.json({
+      total,
+      onTrial,
+      subscribed,
+      expired,
+      canceled,
+      unconfigured,       // registered but never set up Stripe keys
+      withStripe,          // configured Stripe at least once
+      withPaddle           // has a Paddle subscription
+    });
   } catch (err) {
     console.error('❌ Admin stats error:', err.message);
     res.status(500).json({ error: err.message });
