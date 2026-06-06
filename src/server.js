@@ -78,9 +78,9 @@ async function authRequired(req, res, next) {
     if (req.path === '/api/paddle-webhook') return next();
     if (req.path === '/api/stripe/oauth/callback') return next();
 
-    // Parse API key from Authorization header (for any method)
+    // Parse API key from Authorization header or ?key= query param
     const authHeader = req.headers.authorization || '';
-    const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const apiKey = (authHeader.replace(/^Bearer\s+/i, '').trim()) || (req.query.key || '').trim();
 
     // No API key provided — allow through for GET requests (handlers will show unauthenticated state)
     if (!apiKey) {
