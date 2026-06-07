@@ -173,36 +173,14 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   </div>
   <div class="cta-note">7-day free trial · No credit card · Cancel anytime</div>
 
-  <!-- Demo preview: live stats + transaction table -->
-  <div class="mockup" style="margin-top:28px;padding:20px 24px 16px;">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <div style="flex:1;min-width:90px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;">$42,380</div>
-        <div style="font-size:10px;color:#64748b;">Revenue synced (30d)</div>
-      </div>
-      <div style="flex:1;min-width:90px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;">847</div>
-        <div style="font-size:10px;color:#64748b;">Transactions (30d)</div>
-      </div>
-      <div style="flex:1;min-width:90px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;color:#059669;">100%</div>
-        <div style="font-size:10px;color:#64748b;">Sync rate</div>
-      </div>
-    </div>
-    <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
-      Stripe: <span class="badge badge-ok" style="font-size:11px;">Connected</span> &middot;
-      PayPal: <span class="badge badge-ok" style="font-size:11px;">Connected</span> &middot;
-      <strong>142,493</strong> synced
-    </div>
+  <!-- Live mockup: Stripe-style table -->
+  <div class="mockup" style="margin-top:28px;">
     <div class="bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
     <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$49.00</span><span class="tag rev">Revenue Recognition</span></div>
     <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$129.00</span><span class="tag rev">Revenue Recognition</span></div>
-    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$1,299.00</span><span class="tag new">Synced by Bridge</span></div>
-    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;border-bottom:1px solid #bbf7d0;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$499.00</span><span class="tag new">Synced by Bridge</span></div>
-    <div class="highlight-row"><div class="row"><span class="src" style="font-weight:600;">Total visible in Stripe</span><span class="amt">$1,976.00</span><span class="tag rev">Includes PayPal</span></div></div>
-  </div>
-  <div style="text-align:center;margin-top:10px;">
-    <a href="#setup" class="btn btn-primary" style="font-size:14px;padding:12px 28px;">Start free trial &rarr;</a>
+    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$32.00</span><span class="tag new">Synced by Bridge</span></div>
+    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;border-bottom:1px solid #bbf7d0;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$87.50</span><span class="tag new">Synced by Bridge</span></div>
+    <div class="highlight-row"><div class="row"><span class="src" style="font-weight:600;">Total visible in Stripe</span><span class="amt">$297.50</span><span class="tag rev">Includes PayPal</span></div></div>
   </div>
 </div>
 
