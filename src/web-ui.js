@@ -139,6 +139,17 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     .text-center { text-align: center; }
     .mt-0 { margin-top: 0; }
     .mb-0 { margin-bottom: 0; }
+    /* ── Demo mode: hide marketing, show only product dashboard ── */
+    body.demo-mode .hero,
+    body.demo-mode > .container > section,
+    body.demo-mode > .container > .text-center,
+    body.demo-mode > .container > hr {
+      display: none !important;
+    }
+    body.demo-mode .wiz {
+      margin-top: 0;
+      padding-top: 24px;
+    }
     @media (max-width: 520px) {
       .hero { padding: 36px 0 28px; }
       section { padding: 28px 0; }
@@ -416,12 +427,12 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
     // Hide marketing sections — demo user wants to see the product, not the landing page
-    var sections = document.querySelectorAll('.hero, section, hr, .cta-row, .cta-note, .pricing');
-    for (var s = 0; s < sections.length; s++) { sections[s].style.display = 'none'; }
+    // Use a CSS class on body for precise targeting without affecting dashboard internals
+    document.body.classList.add('demo-mode');
     // Remove the setup divider
     var divider = document.querySelector('.wiz .divider');
     if (divider) divider.style.display = 'none';
-    // Immediately scroll to dashboard and populate after DOM settles
+    // Immediately scroll to dashboard
     document.getElementById('s-dashboard').scrollIntoView({ behavior: 'auto' });
     setTimeout(initDemoMode, 100);
   }
