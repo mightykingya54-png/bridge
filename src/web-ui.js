@@ -139,17 +139,6 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     .text-center { text-align: center; }
     .mt-0 { margin-top: 0; }
     .mb-0 { margin-bottom: 0; }
-    /* ── Demo mode: hide marketing, show only product dashboard ── */
-    body.demo-mode .hero,
-    body.demo-mode > .container > section,
-    body.demo-mode > .container > .text-center,
-    body.demo-mode > .container > hr {
-      display: none !important;
-    }
-    body.demo-mode .wiz {
-      margin-top: 0;
-      padding-top: 24px;
-    }
     @media (max-width: 520px) {
       .hero { padding: 36px 0 28px; }
       section { padding: 28px 0; }
@@ -165,7 +154,6 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
 
 <div class="nav">
   <span class="brand">🌉 Bridge</span>
-  <span id="demo-badge-nav" style="display:none;background:#eef2ff;color:#4338ca;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:0.02em;">LIVE DEMO</span>
   <a href="#how">How it works</a>
   <a href="#pricing">Pricing</a>
   <a href="#setup" class="btn-sm">Start free</a>
@@ -308,12 +296,59 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
 <!-- ════════════════ SETUP WIZARD ════════════════ -->
 <hr />
 <div class="wiz" id="setup">
-  <div class="divider">↓ Get started — free for 7 days</div>
+  <div class="divider">↓ See Bridge in action</div>
 
-  <div class="card step-view active" id="s-register">
+  <div class="card step-view active" id="s-demo-preview">
+    <h2>See what Bridge looks like</h2>
+    <p>Sample data showing PayPal transactions synced into Stripe. No setup needed.</p>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 14px;">
+      <div style="flex:1;min-width:100px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;">$42,380</div>
+        <div style="font-size:11px;color:#64748b;">Revenue synced (30d)</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;">847</div>
+        <div style="font-size:11px;color:#64748b;">Transactions (30d)</div>
+      </div>
+      <div style="flex:1;min-width:100px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:20px;font-weight:800;color:#059669;">100%</div>
+        <div style="font-size:11px;color:#64748b;">Sync success rate</div>
+      </div>
+    </div>
+
+    <p style="font-size:14px;">Stripe: <span class="badge badge-ok" style="font-size:12px;">Connected</span> &middot; PayPal: <span class="badge badge-ok" style="font-size:12px;">Connected</span></p>
+    <p style="font-size:14px;">Synced: <strong>142,493</strong> transactions &middot; Last sync: Just now</p>
+
+    <h3 style="font-size:15px;font-weight:700;margin-top:16px;margin-bottom:8px;">Recent transactions synced from PayPal</h3>
+    <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:7px 8px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Date</th>
+            <th style="padding:7px 8px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Customer</th>
+            <th style="padding:7px 8px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Amount</th>
+            <th style="padding:7px 8px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">Jun 8</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">Acme Corp</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-weight:600;">$1,299.00</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#059669;">Synced</td></tr>
+          <tr><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">Jun 8</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">TechStart Inc</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-weight:600;">$499.00</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#059669;">Synced</td></tr>
+          <tr><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">Jun 7</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">DesignLab</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-weight:600;">$249.00</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#059669;">Synced</td></tr>
+          <tr><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">Jun 7</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;">DataFlow Systems</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;font-weight:600;">$3,999.00</td><td style="padding:7px 8px;border-bottom:1px solid #f1f5f9;color:#059669;">Synced</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:#94a3b8;margin-top:6px;text-align:center;">Showing 4 of 142,493 synced transactions</p>
+
+    <button onclick="showRegister()" style="margin-top:16px;width:100%;padding:12px;font-size:15px;font-weight:700;background:#0f172a;color:#fff;border:none;border-radius:8px;cursor:pointer;">Start free trial &rarr;</button>
+    <p style="font-size:12px;color:#64748b;margin-top:6px;text-align:center;">No credit card &middot; 7-day free trial</p>
+  </div>
+
+  <div class="card step-view" id="s-register">
     <h2>Create your account</h2>
     <p>No credit card required. Trial starts now.</p>
-    <button id="btn-register" onclick="register()">Start free trial →</button>
+    <button id="btn-register" onclick="register()">Start free trial &rarr;</button>
     <div id="error-register" class="error" style="margin-top:8px;"></div>
   </div>
 
@@ -421,22 +456,6 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   const API = '${BASE_URL}';
   let API_KEY = localStorage.getItem('bridge_api_key') || '';
 
-  // ── Demo mode: ?demo=true shows a live preview with sample data ──
-  const IS_DEMO = new URLSearchParams(window.location.search).get('demo') === 'true';
-  if (IS_DEMO) {
-    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
-    document.getElementById('s-dashboard').classList.add('active');
-    // Hide marketing sections — demo user wants to see the product, not the landing page
-    // Use a CSS class on body for precise targeting without affecting dashboard internals
-    document.body.classList.add('demo-mode');
-    // Remove the setup divider
-    var divider = document.querySelector('.wiz .divider');
-    if (divider) divider.style.display = 'none';
-    // Immediately scroll to dashboard
-    document.getElementById('s-dashboard').scrollIntoView({ behavior: 'auto' });
-    setTimeout(initDemoMode, 100);
-  }
-
   // Initialize Paddle.js with client-side token
   const PADDLE_TOKEN = ${JSON.stringify(PADDLE_CLIENT_TOKEN)};
   if (typeof Paddle !== 'undefined' && PADDLE_TOKEN) {
@@ -469,10 +488,9 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     }, 300);
   }
 
-  // Handle checkout redirect params (skipped in demo mode)
-  if (!IS_DEMO) {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success' && API_KEY) {
+  // Handle checkout redirect params
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('checkout') === 'success' && API_KEY) {
     // Checkout completed — show dashboard and poll until webhook arrives
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
@@ -527,12 +545,19 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
         document.getElementById('s-dashboard').classList.add('active');
         loadDashboard();
       } catch (e) {
-        // Stale key — clear it and show registration
+        // Stale key — clear it, hide demo preview, show registration
         localStorage.removeItem('bridge_api_key');
+        document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+        document.getElementById('s-register').classList.add('active');
         document.getElementById('error-register').textContent = '⚠️ Previous session expired. Register again to start fresh.';
       }
     })();
   }
+
+  function showRegister() {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-register').classList.add('active');
+    document.getElementById('s-register').scrollIntoView({ behavior: 'smooth' });
   }
 
   async function register() {
@@ -810,163 +835,6 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     }
     // Fallback: load dashboard showing what we have
     loadDashboard();
-  }
-
-  // ── Demo mode functions ─────────────────────────────────
-  function initDemoMode() {
-    // Show demo badge in nav
-    var badge = document.getElementById('demo-badge-nav');
-    if (badge) badge.style.display = 'inline-block';
-
-    // Add demo banner at top of dashboard
-    var dash = document.getElementById('s-dashboard');
-    var banner = document.createElement('div');
-    banner.style.cssText = 'background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px 16px;margin-bottom:16px;text-align:center;font-size:13px;line-height:1.5;';
-    banner.innerHTML = '<strong>Live demo</strong> \u2014 Sample data shown. <a href="/app" style="color:#4338ca;font-weight:600;">Create an account \u2192</a> to sync your real PayPal transactions.';
-    dash.insertBefore(banner, dash.firstChild);
-
-    // Connection status
-    document.getElementById('stripe-status').textContent = 'Connected';
-    document.getElementById('stripe-status').className = 'badge badge-ok';
-    document.getElementById('paypal-status').textContent = 'Connected';
-    document.getElementById('paypal-status').className = 'badge badge-ok';
-
-    // Sync stats
-    document.getElementById('sync-count').textContent = '142,493';
-    document.getElementById('sync-time').textContent = 'Just now';
-
-    // Subscription — show as active subscribed
-    document.getElementById('sub-status').textContent = 'Active';
-    document.getElementById('sub-status').className = 'badge badge-ok';
-    document.getElementById('sub-detail').textContent = 'Subscribed (via Paddle)';
-    document.getElementById('btn-subscribe').style.display = 'none';
-    document.getElementById('btn-manage').style.display = 'none';
-
-    // Hide inline config sections
-    document.getElementById('stripe-connect-section').style.display = 'none';
-    document.getElementById('paypal-config-section').style.display = 'none';
-
-    // Hide danger zone
-    var dangerDetails = document.querySelector('#s-dashboard details');
-    if (dangerDetails) dangerDetails.style.display = 'none';
-
-    // Add stats cards and transaction table
-    addDemoStatsCards();
-    addDemoTransactions();
-
-    // Override sync button for demo
-    var syncBtn = document.getElementById('btn-sync');
-    syncBtn.textContent = 'Sync now (demo)';
-    syncBtn.onclick = demoModeSync;
-  }
-
-  function addDemoStatsCards() {
-    var html =
-      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">' +
-        '<div style="flex:1;min-width:120px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;text-align:center;">' +
-          '<div style="font-size:22px;font-weight:800;color:#0f172a;">$42,380</div>' +
-          '<div style="font-size:12px;color:#64748b;margin-top:2px;">Revenue synced (30 days)</div>' +
-        '</div>' +
-        '<div style="flex:1;min-width:120px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;text-align:center;">' +
-          '<div style="font-size:22px;font-weight:800;color:#0f172a;">847</div>' +
-          '<div style="font-size:12px;color:#64748b;margin-top:2px;">Transactions (30 days)</div>' +
-        '</div>' +
-        '<div style="flex:1;min-width:120px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;text-align:center;">' +
-          '<div style="font-size:22px;font-weight:800;color:#059669;">100%</div>' +
-          '<div style="font-size:12px;color:#64748b;margin-top:2px;">Sync success rate</div>' +
-        '</div>' +
-      '</div>';
-    var h2 = document.querySelector('#s-dashboard h2');
-    h2.insertAdjacentHTML('afterend', html);
-  }
-
-  function addDemoTransactions() {
-    var txns = [
-      { date: 'Jun 8, 2026', customer: 'Acme Corp', amount: '$1,299.00', status: 'Synced', sid: 'pi_demo_001' },
-      { date: 'Jun 8, 2026', customer: 'TechStart Inc', amount: '$499.00', status: 'Synced', sid: 'pi_demo_002' },
-      { date: 'Jun 7, 2026', customer: 'DesignLab', amount: '$249.00', status: 'Synced', sid: 'pi_demo_003' },
-      { date: 'Jun 7, 2026', customer: 'DataFlow Systems', amount: '$3,999.00', status: 'Synced', sid: 'pi_demo_004' },
-      { date: 'Jun 6, 2026', customer: 'CloudNine SaaS', amount: '$799.00', status: 'Synced', sid: 'pi_demo_005' },
-      { date: 'Jun 5, 2026', customer: 'GreenLeaf Analytics', amount: '$149.00', status: 'Synced', sid: 'pi_demo_006' },
-    ];
-
-    var rows = '';
-    var tdStyle = 'padding:8px 10px;font-size:13px;border-bottom:1px solid #f1f5f9;';
-    for (var i = 0; i < txns.length; i++) {
-      var t = txns[i];
-      rows += '<tr>' +
-        '<td style="' + tdStyle + '">' + t.date + '</td>' +
-        '<td style="' + tdStyle + '">' + t.customer + '</td>' +
-        '<td style="' + tdStyle + 'font-weight:600;">' + t.amount + '</td>' +
-        '<td style="' + tdStyle + 'color:#64748b;">USD</td>' +
-        '<td style="' + tdStyle + 'color:#059669;">' + t.status + '</td>' +
-        '<td style="' + tdStyle + 'font-family:monospace;color:#94a3b8;font-size:12px;">' + t.sid + '</td>' +
-      '</tr>';
-    }
-
-    var html =
-      '<hr />' +
-      '<div style="margin-top:16px;">' +
-        '<h3 style="font-size:16px;font-weight:700;margin-bottom:10px;">Recent transactions synced from PayPal</h3>' +
-        '<div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;">' +
-          '<table style="width:100%;border-collapse:collapse;">' +
-            '<thead>' +
-              '<tr style="background:#f8fafc;">' +
-                '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Date</th>' +
-                '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Customer</th>' +
-                '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Amount</th>' +
-                '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Currency</th>' +
-                '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Status</th>' +
-                '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0;">Stripe ID</th>' +
-              '</tr>' +
-            '</thead>' +
-            '<tbody>' + rows + '</tbody>' +
-          '</table>' +
-        '</div>' +
-        '<p style="font-size:12px;color:#94a3b8;margin-top:8px;text-align:center;">Showing 6 of 142,493 synced transactions</p>' +
-      '</div>';
-
-    var firstHr = document.querySelector('#s-dashboard hr');
-    if (firstHr) firstHr.insertAdjacentHTML('beforebegin', html);
-  }
-
-  function demoModeSync() {
-    var btn = document.getElementById('btn-sync');
-    btn.textContent = 'Syncing...';
-    btn.disabled = true;
-    setTimeout(function() {
-      btn.textContent = 'Synced! +12 new transactions';
-      var tbody = document.querySelector('#s-dashboard table tbody');
-      if (tbody) {
-        var newRow = document.createElement('tr');
-        var today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        var amt = '$' + (Math.floor(Math.random() * 900) + 100).toFixed(2);
-        var tdStyle = 'padding:8px 10px;font-size:13px;border-bottom:1px solid #f1f5f9;';
-        newRow.innerHTML =
-          '<td style="' + tdStyle + '">' + today + '</td>' +
-          '<td style="' + tdStyle + '">Demo Customer</td>' +
-          '<td style="' + tdStyle + 'font-weight:600;">' + amt + '</td>' +
-          '<td style="' + tdStyle + 'color:#64748b;">USD</td>' +
-          '<td style="' + tdStyle + 'color:#059669;">Synced just now</td>' +
-          '<td style="' + tdStyle + 'font-family:monospace;color:#94a3b8;font-size:12px;">pi_demo_new</td>';
-        tbody.prepend(newRow);
-      }
-      // Update counter and note
-      var countEl = document.getElementById('sync-count');
-      var currentTotal = parseInt(countEl.textContent.replace(/,/g, ''), 10);
-      countEl.textContent = (currentTotal + 12).toLocaleString();
-      document.getElementById('sync-time').textContent = 'Just now';
-      var notes = document.querySelectorAll('#s-dashboard p');
-      for (var i = 0; i < notes.length; i++) {
-        if (notes[i].textContent.indexOf('synced transactions') !== -1) {
-          notes[i].textContent = 'Showing 7 of ' + (currentTotal + 12).toLocaleString() + ' synced transactions';
-        }
-      }
-      setTimeout(function() {
-        btn.textContent = 'Sync now (demo)';
-        btn.disabled = false;
-      }, 2000);
-    }, 1500);
   }
 
   function setLoading(btnId, loading) {
