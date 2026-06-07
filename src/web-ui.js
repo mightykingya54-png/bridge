@@ -415,6 +415,14 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   if (IS_DEMO) {
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
+    // Hide marketing sections — demo user wants to see the product, not the landing page
+    var sections = document.querySelectorAll('.hero, section, hr, .cta-row, .cta-note, .pricing');
+    for (var s = 0; s < sections.length; s++) { sections[s].style.display = 'none'; }
+    // Remove the setup divider
+    var divider = document.querySelector('.wiz .divider');
+    if (divider) divider.style.display = 'none';
+    // Immediately scroll to dashboard and populate after DOM settles
+    document.getElementById('s-dashboard').scrollIntoView({ behavior: 'auto' });
     setTimeout(initDemoMode, 100);
   }
 
