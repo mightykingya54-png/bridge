@@ -13,11 +13,14 @@ export {
  };
 
 // Timestamp changes on every export, ensuring the dev server detects a rebuild
-export const BUILD_TIME = '2026-06-05 01:24:55.296607 +0530 IST m=+1.700470876';
+export const BUILD_TIME = '2026-06-06 17:31:53.671022 +0530 IST m=+1.648607376';
 
 // App manifest — consumed by the Dashboard to configure the app
 export default {
   "$schema": "https://stripe.com/stripe-app.schema.json",
+  "allowed_redirect_uris": [
+    "https://bridge-production-ad61.up.railway.app/app"
+  ],
   "distribution_type": "private",
   "icon": "./bridge_icon_32.png",
   "id": "com.bridge.payment-sync",
@@ -53,5 +56,5 @@ export default {
       }
     ]
   },
-  "version": "0.3.1"
+  "version": "0.5.0"
 };
