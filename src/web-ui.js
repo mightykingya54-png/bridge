@@ -582,10 +582,14 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
     <details style="font-size:13px;color:#64748b;">
       <summary style="cursor:pointer;font-weight:600;color:#475569;">Add PayPal (optional)</summary>
       <p style="margin:8px 0 6px;">Bridge can also sync your PayPal transactions into Stripe Revenue Recognition. This step is optional.</p>
-      <label>PayPal Client ID <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">Where to find this →</a></label>
-      <input type="text" id="paypal-client-id" placeholder="A..." />
-      <label>PayPal Client Secret <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">Where to find this →</a></label>
-      <input type="password" id="paypal-client-secret" placeholder="E..." />
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="text" id="paypal-client-id" placeholder="PayPal Client ID" style="flex:1;" />
+        <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;color:var(--text-secondary);text-decoration:none;white-space:nowrap;background:var(--bg);display:inline-flex;align-items:center;gap:4px;height:40px;">Find ID →</a>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="password" id="paypal-client-secret" placeholder="PayPal Client Secret" style="flex:1;" />
+        <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;color:var(--text-secondary);text-decoration:none;white-space:nowrap;background:var(--bg);display:inline-flex;align-items:center;gap:4px;height:40px;">Find Secret →</a>
+      </div>
       <button id="btn-save-paypal" onclick="savePaypal()" style="margin-top:6px;">Save PayPal</button>
       <div id="error-paypal-setup" class="error" style="margin-top:4px;"></div>
       <div id="success-paypal-setup" class="success" style="margin-top:4px;"></div>
@@ -674,8 +678,14 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
     <div id="paypal-config-section" style="display:none;margin-top:16px;">
       <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">Connect PayPal</h3>
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Enter your PayPal API credentials.</p>
-      <input type="text" id="dash-paypal-id" placeholder="PayPal Client ID" style="margin-bottom:8px;" />
-      <input type="password" id="dash-paypal-secret" placeholder="PayPal Client Secret" style="margin-bottom:8px;" />
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="text" id="dash-paypal-id" placeholder="PayPal Client ID" style="flex:1;margin-bottom:0;" />
+        <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;color:var(--text-secondary);text-decoration:none;white-space:nowrap;background:var(--bg);display:inline-flex;align-items:center;gap:4px;">Find ID →</a>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="password" id="dash-paypal-secret" placeholder="PayPal Client Secret" style="flex:1;margin-bottom:0;" />
+        <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="padding:8px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;color:var(--text-secondary);text-decoration:none;white-space:nowrap;background:var(--bg);display:inline-flex;align-items:center;gap:4px;">Find Secret →</a>
+      </div>
       <button id="btn-dash-paypal" onclick="configurePaypal()">Save PayPal</button>
       <div id="error-paypal" class="error" style="margin-top:6px;"></div>
       <div id="success-paypal" class="success" style="margin-top:6px;"></div>
