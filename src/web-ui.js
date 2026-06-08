@@ -12,16 +12,51 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bridge — Sync PayPal to Stripe Revenue Recognition</title>
   <meta name="description" content="PayPal income doesn't show in Stripe. Bridge makes it show up. Reads PayPal transactions, pushes into Stripe Revenue Recognition as Payment Records. Daily sync. $49/mo.">
-  <meta property="og:title" content="Bridge — PayPal to Stripe Revenue Recognition">
-  <meta property="og:description" content="Bridge reads PayPal transactions and pushes them into Stripe Revenue Recognition as Payment Records. Daily sync. No CSV exports. No spreadsheets. $49/month.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://bridge-production-ad61.up.railway.app/">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Bridge — Sync PayPal to Stripe Revenue Recognition">
+  <meta property="og:description" content="PayPal income doesn't show in Stripe Revenue Recognition. Bridge reads PayPal transactions and pushes them in as Payment Records automatically. Daily sync. No spreadsheets.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://bridge-production-ad61.up.railway.app/">
+  <meta property="og:image" content="https://bridge-production-ad61.up.railway.app/og-image.png">
+  <meta property="og:site_name" content="Bridge">
   <meta name="twitter:card" content="summary_large_image">
-  <!-- Paddle.js for checkout overlay -->
-  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <meta name="twitter:title" content="Bridge — PayPal to Stripe Revenue Recognition">
+  <meta name="twitter:description" content="Bridge reads PayPal transactions and pushes them into Stripe Revenue Recognition automatically. Daily sync. No CSV. No spreadsheets.">
+
+  <!-- JSON-LD Structured Data: SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Bridge",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "Syncs PayPal transactions into Stripe Revenue Recognition automatically. Daily sync, no manual CSV exports, no spreadsheets.",
+    "url": "https://bridge-production-ad61.up.railway.app",
+    "offers": {
+      "@type": "Offer",
+      "price": "49",
+      "priceCurrency": "USD",
+      "description": "Monthly subscription after 7-day free trial"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "Yashoraj"
+    }
+  }
+  </script>
+
+  <!-- Font loading: Inter with display=swap for no FOIT -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" as="style">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet">
+
+  <!-- Paddle.js for checkout overlay — loaded async so it doesn't block rendering -->
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js" async></script>
   <style>
     :root {
       --bg: #fafbfc;
@@ -774,72 +809,11 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
       document.getElementById('s-configure').classList.add('active');
       document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
-      document.getElementById('error-register').textContent = e.message;
-    } finally {
-      setLoading('btn-register', false);
+      document.getElementById('error-stripe-connect').textContent = friendlyError(e.message);
+      setLoading('btn-dash-stripe', false);
     }
   }
 
-  function showCfg() {
-    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
-    document.getElementById('s-configure').classList.add('active');
-    document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
-  }
-
-  async function configure() {
-    const sk = document.getElementById('stripe-key').value;
-    const pc = document.getElementById('paypal-client-id').value;
-    const ps = document.getElementById('paypal-client-secret').value;
-    setLoading('btn-configure', true);
-    document.getElementById('error-configure').textContent = '';
-    document.getElementById('success-configure').textContent = '';
-    try {
-      const body = {};
-      if (sk) body.stripeKey = sk;
-      if (pc) body.paypalClientId = pc;
-      if (ps) body.paypalClientSecret = ps;
-      const r = await fetch(API + '/api/configure', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
-        body: JSON.stringify(body),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Configuration failed');
-      document.getElementById('success-configure').textContent = '✅ Connected!';
-      setTimeout(() => {
-        document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
-        document.getElementById('s-dashboard').classList.add('active');
-        document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
-        setLoading('btn-configure', false);
-        loadDashboard();
-      }, 800);
-      return; // skip the finally restore (timeout handles it)
-    } catch (e) {
-      document.getElementById('error-configure').textContent = e.message;
-    } finally {
-      // Only restore if we didn't hit the success path (which returns early)
-      if (!document.getElementById('success-configure').textContent) {
-        setLoading('btn-configure', false);
-      }
-    }
-  }
-
-  // ── Stripe OAuth ──────────────────────────────────────────
-  function connectStripe() {
-    // Navigate to OAuth start endpoint with API key in URL (since direct navigation
-    // doesn't send the Authorization header)
-    window.location.href = API + '/api/stripe/oauth/start?token=' + API_KEY;
-  }
-
-  function toggleOauthInfo() {
-    const section = document.getElementById('oauth-info');
-    const link = document.querySelector('[onclick="toggleOauthInfo()"]');
-    const hidden = section.style.display === 'none' || !section.style.display;
-    section.style.display = hidden ? 'block' : 'none';
-    link.textContent = hidden ? '▲ Hide one-click auth' : '▼ Use one-click Stripe auth instead';
-  }
-
-  // ── PayPal inline config (on dashboard) ──────────────────
   async function configurePaypal() {
     const id = document.getElementById('dash-paypal-id').value;
     const secret = document.getElementById('dash-paypal-secret').value;
@@ -859,7 +833,7 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
       setLoading('btn-dash-paypal', false);
       loadDashboard();
     } catch (e) {
-      document.getElementById('error-paypal').textContent = e.message;
+      document.getElementById('error-paypal').textContent = friendlyError(e.message);
       setLoading('btn-dash-paypal', false);
     }
   }
@@ -1024,7 +998,7 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
         document.getElementById('error-billing').textContent = 'Already subscribed.';
       }
       setLoading('btn-subscribe', false);
-    } catch (e) { document.getElementById('error-billing').textContent = e.message; setLoading('btn-subscribe', false); }
+    } catch (e) { document.getElementById('error-billing').textContent = friendlyError(e.message); setLoading('btn-subscribe', false); }
   }
 
   async function manageBilling() {
@@ -1035,7 +1009,7 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
       if (!r.ok) throw new Error(d.error);
       if (d.url) window.location.href = d.url;
       else document.getElementById('error-billing').textContent = 'Unable to open billing portal. Contact support.';
-    } catch (e) { document.getElementById('error-billing').textContent = e.message; }
+    } catch (e) { document.getElementById('error-billing').textContent = friendlyError(e.message); }
   }
 
   async function dashConnectStripe() {
@@ -1068,13 +1042,12 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     try {
       const r = await fetch(API + '/api/sync', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
-      if (r.status === 402) { document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required'); setLoading('btn-sync', false); loadDashboard(); return; }
+      if (r.status === 402) { document.getElementById('error-sync').textContent = friendlyError(d.detail || 'Subscription required'); setLoading('btn-sync', false); loadDashboard(); return; }
       if (!r.ok) throw new Error(d.error);
-      const rev = d.pushed > 0 ? ' · $' + (d.pushed * 0).toFixed(2) : '';
       document.getElementById('success-sync').textContent = '✅ Synced ' + d.pushed + ' transactions' + (d.skipped > 0 ? ', ' + d.skipped + ' skipped' : '');
       setLoading('btn-sync', false);
       loadDashboard();
-    } catch (e) { document.getElementById('error-sync').textContent = e.message; setLoading('btn-sync', false); }
+    } catch (e) { document.getElementById('error-sync').textContent = friendlyError(e.message); setLoading('btn-sync', false); }
   }
 
   function resetAll() {
@@ -1082,6 +1055,32 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     if (!confirm('This cannot be undone. Your configured credentials will be lost.')) return;
     localStorage.removeItem('bridge_api_key');
     location.reload();
+  }
+
+  /**
+   * Map raw error strings to user-friendly messages with actionable guidance.
+   */
+  function friendlyError(msg) {
+    if (!msg) return 'Something went wrong. Try again.';
+    const m = msg.toLowerCase();
+    if (m.includes('stripe key invalid') || m.includes('stripe rejected') || m.includes('stripe'))
+      return msg.length > 80 ? msg.substring(0, 80) + '…' : msg;
+    if (m.includes('paypal') && (m.includes('invalid') || m.includes('401')))
+      return 'PayPal credentials were rejected. Check your Client ID and Secret are correct and from the right environment (sandbox vs live).';
+    if (m.includes('expired') || m.includes('subscription required') || m.includes('402'))
+      return 'Your free trial has ended. Subscribe at $49/mo to continue syncing. Head to the Plan section above.';
+    if (m.includes('network') || m.includes('fetch') || m.includes('econnrefused') || m.includes('enotfound') || m.includes('etimedout'))
+      return 'Network error — could not reach the server. Check your internet connection and try again.';
+    if (m.includes('already used') || m.includes('trial'))
+      return msg;
+    if (m.includes('api key') || m.includes('unauthorized') || m.includes('401'))
+      return 'Authentication failed. Your session may have expired — try refreshing the page.';
+    if (m.includes('rate limit') || m.includes('too many'))
+      return 'Too many requests. Please wait a moment and try again.';
+    if (m.includes('not found') || m.includes('404'))
+      return 'The requested resource was not found. It may have been removed.';
+    // Return original but truncate
+    return msg.length > 120 ? msg.substring(0, 120) + '…' : msg;
   }
 
   function escapeHtml(str) {

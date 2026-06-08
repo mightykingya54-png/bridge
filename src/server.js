@@ -43,10 +43,46 @@ import {
 } from './sync/state.js';
 
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 
 const app = express();
+app.use(compression());  // gzip all responses
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
+
+/**
+ * Map an error to a user-friendly message.
+ * Hides implementation details, shows actionable guidance.
+ */
+function friendlyError(err, context = '') {
+  const msg = err?.message || err || 'Unknown error';
+  const lower = msg.toLowerCase();
+
+  if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT')) {
+    return 'Network error — could not reach the service. Check your internet connection and try again.';
+  }
+  if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('invalid api key')) {
+    return 'Invalid API key. Go to Settings to find your key, or register a new account.';
+  }
+  if (lower.includes('402') || lower.includes('subscription required') || lower.includes('payment required')) {
+    return 'Subscription required. Your free trial has ended. Visit Pricing to subscribe.';
+  }
+  if (lower.includes('stripe')) {
+    if (lower.includes('401') || lower.includes('unauthorized')) return 'Stripe rejected the request — your secret key may be invalid. Check your Stripe dashboard and update the key.';
+    if (lower.includes('rate limit')) return 'Stripe rate limit reached. Waiting before retrying automatically.';
+    return `Stripe error: ${msg.substring(0, 120)}. Verify your Stripe key is correct and has the required permissions.`;
+  }
+  if (lower.includes('paypal')) {
+    if (lower.includes('401') || lower.includes('unauthorized')) return 'PayPal rejected the credentials — your Client ID or Secret may be incorrect. Update them in Settings.';
+    return `PayPal error: ${msg.substring(0, 120)}. Check your PayPal API credentials.`;
+  }
+  if (lower.includes('not found') || lower.includes('does not exist')) {
+    return 'The requested resource was not found. It may have been removed or the URL may be incorrect.';
+  }
+
+  // Default: truncate raw error to 150 chars for safety
+  return msg.substring(0, 150);
+}
 
 // Rate limiting to prevent abuse / brute-force
 const registerLimiter = rateLimit({
@@ -108,7 +144,7 @@ async function authRequired(req, res, next) {
     req.isMaster = false;
     next();
   } catch (err) {
-    res.status(500).json({ error: `Auth error: ${err.message}` });
+    res.status(500).json({ error: friendlyError(err, 'auth') });
   }
 }
 app.use(authRequired);
@@ -123,12 +159,16 @@ const scheduler = startScheduler({
 
 // ── Routes ──────────────────────────────────────────────────────
 
-// Static legal pages (for Paddle verification)
-app.get('/terms-of-service', (req, res) => res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Terms of Service</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Terms of Service</h1><p class="meta">Last updated: June 5, 2026</p><p>By using Bridge ("the Service"), you agree to these terms.</p><h2>1. Service</h2><p>Bridge syncs PayPal transactions into Stripe Revenue Recognition. We provide the Service as-is, with no guarantee of uptime or error-free operation.</p><h2>2. Payments</h2><p>Bridge charges $49/month after a 7-day free trial. Subscriptions auto-renew until cancelled. No refunds for partial months.</p><h2>3. Data</h2><p>You provide Stripe and PayPal API credentials. Bridge accesses transaction data only to perform the sync. We do not store customer PII, card data, or addresses.</p><h2>4. Limitation of Liability</h2><p>Bridge is not responsible for inaccurate data, sync failures, or any damages arising from use of the Service.</p><h2>5. Termination</h2><p>You may cancel anytime. We may terminate accounts for violation of these terms.</p></body></html>`));
+// Static legal pages (for Paddle verification) — cache for 1 hour
+function serveLegal(res, html) {
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(html);
+}
+app.get('/terms-of-service', (req, res) => serveLegal(res, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Terms of Service</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Terms of Service</h1><p class="meta">Last updated: June 5, 2026</p><p>By using Bridge ("the Service"), you agree to these terms.</p><h2>1. Service</h2><p>Bridge syncs PayPal transactions into Stripe Revenue Recognition. We provide the Service as-is, with no guarantee of uptime or error-free operation.</p><h2>2. Payments</h2><p>Bridge charges $49/month after a 7-day free trial. Subscriptions auto-renew until cancelled. No refunds for partial months.</p><h2>3. Data</h2><p>You provide Stripe and PayPal API credentials. Bridge accesses transaction data only to perform the sync. We do not store customer PII, card data, or addresses.</p><h2>4. Limitation of Liability</h2><p>Bridge is not responsible for inaccurate data, sync failures, or any damages arising from use of the Service.</p><h2>5. Termination</h2><p>You may cancel anytime. We may terminate accounts for violation of these terms.</p></body></html>`));
 
-app.get('/privacy-policy', (req, res) => res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Privacy Policy</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Privacy Policy</h1><p class="meta">Last updated: June 5, 2026</p><h2>What We Collect</h2><p>Bridge collects your Stripe and PayPal API credentials, email address, and transaction metadata (amount, date, currency, transaction ID). We do not collect customer PII, card numbers, or bank details.</p><h2>How We Use Data</h2><p>Credentials are encrypted at rest and used solely to sync PayPal transactions into your Stripe account. Transaction data is stored for deduplication purposes only.</p><h2>Data Retention</h2><p>Transaction IDs are retained to prevent duplicate syncs. You may delete your account and all associated data at any time.</p><h2>Third Parties</h2><p>Bridge communicates with Stripe and PayPal APIs using your credentials. No data is shared with any other third party.</p><h2>Contact</h2><p>yashanare193@gmail.com</p></body></html>`));
+app.get('/privacy-policy', (req, res) => serveLegal(res, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Privacy Policy</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Privacy Policy</h1><p class="meta">Last updated: June 5, 2026</p><h2>What We Collect</h2><p>Bridge collects your Stripe and PayPal API credentials, email address, and transaction metadata (amount, date, currency, transaction ID). We do not collect customer PII, card numbers, or bank details.</p><h2>How We Use Data</h2><p>Credentials are encrypted at rest and used solely to sync PayPal transactions into your Stripe account. Transaction data is stored for deduplication purposes only.</p><h2>Data Retention</h2><p>Transaction IDs are retained to prevent duplicate syncs. You may delete your account and all associated data at any time.</p><h2>Third Parties</h2><p>Bridge communicates with Stripe and PayPal APIs using your credentials. No data is shared with any other third party.</p><h2>Contact</h2><p>yashanare193@gmail.com</p></body></html>`));
 
-app.get('/refund-policy', (req, res) => res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Refund Policy</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Refund Policy</h1><p class="meta">Last updated: June 5, 2026</p><h2>7-Day Free Trial</h2><p>All new accounts receive a 7-day free trial. No credit card required. If you cancel during the trial, you will not be charged.</p><h2>Paid Subscriptions</h2><p>Bridge subscriptions are billed monthly at $49. Refunds are issued only in cases of extended service outage or billing errors. Contact yashanare193@gmail.com with any issues.</p><h2>Cancellation</h2><p>You may cancel anytime from the Bridge dashboard. Access continues until the end of the current billing period. No partial refunds.</p></body></html>`));
+app.get('/refund-policy', (req, res) => serveLegal(res, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Refund Policy</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Refund Policy</h1><p class="meta">Last updated: June 5, 2026</p><h2>7-Day Free Trial</h2><p>All new accounts receive a 7-day free trial. No credit card required. If you cancel during the trial, you will not be charged.</p><h2>Paid Subscriptions</h2><p>Bridge subscriptions are billed monthly at $49. Refunds are issued only in cases of extended service outage or billing errors. Contact yashanare193@gmail.com with any issues.</p><h2>Cancellation</h2><p>You may cancel anytime from the Bridge dashboard. Access continues until the end of the current billing period. No partial refunds.</p></body></html>`));
 
 /**
  * GET /
@@ -169,7 +209,7 @@ app.post('/api/register', async (req, res) => {
       message: 'Save your API key — you will not see it again. Use it in the Authorization header.',
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'register') });
   }
 });
 
@@ -205,7 +245,7 @@ app.get('/api/configure', async (req, res) => {
       paypalEnvironment: m.paypal_environment,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'configure') });
   }
 });
 
@@ -348,7 +388,7 @@ app.get('/api/status', async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'status') });
   }
 });
 
@@ -395,7 +435,7 @@ app.post('/api/sync', async (req, res) => {
       recordIds: result.recordIds.slice(0, 20),
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'sync') });
   }
 });
 
@@ -425,7 +465,7 @@ app.get('/api/sync-history', async (req, res) => {
       totalRevenueFormatted: '$' + (totalRevenueCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'sync-history') });
   }
 });
 
@@ -441,9 +481,7 @@ app.post('/api/refund', async (req, res) => {
   const { processorTxnId, paymentProcessorTxnId, amount, currency, initiatedAt, processorName } = req.body || {};
 
   if (!processorTxnId || !paymentProcessorTxnId || !amount || !currency) {
-    return res.status(400).json({
-      error: 'Missing required fields: processorTxnId, paymentProcessorTxnId, amount, currency',
-    });
+    return res.status(400).json({ error: 'Missing required fields. Provide: processorTxnId, paymentProcessorTxnId, amount, currency.' });
   }
 
   try {
@@ -459,7 +497,7 @@ app.post('/api/refund', async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'refund') });
   }
 });
 
@@ -474,7 +512,7 @@ app.get('/api/synced-ids', async (req, res) => {
     const ids = await getAllSyncedIds(processor, merchantId);
     res.json({ processor, count: ids.length, transactions: ids });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'synced-ids') });
   }
 });
 
@@ -488,7 +526,7 @@ app.get('/api/refunds', async (req, res) => {
     const refunds = await getAllSyncedRefunds(20, merchantId);
     res.json({ count: refunds.length, refunds });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'refunds') });
   }
 });
 
@@ -517,7 +555,7 @@ app.get('/api/subscription', async (req, res) => {
     const sub = await getSubscription(req.merchant.id);
     res.json(sub);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'subscription') });
   }
 });
 
@@ -769,7 +807,7 @@ app.post('/api/paddle-webhook', async (req, res) => {
     res.json({ received: true });
   } catch (err) {
     console.error('❌ Paddle webhook error:', err.message);
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: friendlyError(err, 'paddle-webhook') });
   }
 });
 
@@ -802,7 +840,7 @@ app.get('/api/admin/merchants', async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Admin merchants error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'admin') });
   }
 });
 
@@ -847,7 +885,7 @@ app.get('/api/admin/stats', async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Admin stats error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyError(err, 'admin') });
   }
 });
 
