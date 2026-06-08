@@ -35,6 +35,8 @@ import {
   startTrialIfNeeded,
   getSubscription,
   updateSubscription,
+  getSyncHistory,
+  getTotalRevenueSynced,
   createOAuthState,
   consumeOAuthState,
   updateMerchantStripeOAuth,
@@ -391,6 +393,36 @@ app.post('/api/sync', async (req, res) => {
       skipped: result.skipped,
       errors: result.errors,
       recordIds: result.recordIds.slice(0, 20),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/sync-history
+ * Return sync history + total revenue for the authenticated merchant.
+ */
+app.get('/api/sync-history', async (req, res) => {
+  if (req.isMaster) {
+    return res.status(400).json({ error: 'Master key has no sync history. Register as a merchant first.' });
+  }
+
+  const merchantId = req.merchant?.id;
+  if (!merchantId) {
+    return res.json({ history: [], totalRevenueCents: 0, totalRevenueFormatted: '$0.00' });
+  }
+
+  try {
+    const [history, totalRevenueCents] = await Promise.all([
+      getSyncHistory(merchantId, 30),
+      getTotalRevenueSynced(merchantId),
+    ]);
+
+    res.json({
+      history,
+      totalRevenueCents,
+      totalRevenueFormatted: '$' + (totalRevenueCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

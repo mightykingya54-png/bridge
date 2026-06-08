@@ -201,6 +201,28 @@ export async function initDatabase() {
     );
   `);
 
+  // Sync history table — tracks each sync run with aggregate stats
+  await query(`
+    CREATE TABLE IF NOT EXISTS sync_history (
+      id SERIAL PRIMARY KEY,
+      merchant_id TEXT NOT NULL DEFAULT '',
+      synced_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      transactions_pushed INTEGER DEFAULT 0,
+      transactions_skipped INTEGER DEFAULT 0,
+      total_errors INTEGER DEFAULT 0,
+      total_revenue_cents BIGINT DEFAULT 0,
+      currency TEXT DEFAULT 'USD',
+      status TEXT DEFAULT 'success',
+      error_message TEXT
+    );
+  `);
+
+  // Index for fast per-merchant history lookups
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_sync_history_merchant
+    ON sync_history (merchant_id, synced_at DESC)
+  `);
+
   // Ensure the default state row exists (backward compat)
   const { rows } = await query('SELECT id FROM sync_state WHERE id = 1');
   if (rows.length === 0) {
@@ -692,6 +714,42 @@ export async function getAllSyncedRefunds(limit = 20, merchantId = '') {
   const { rows } = await query(
     'SELECT * FROM synced_refunds ORDER BY synced_at DESC LIMIT $1',
     [limit]
+  );
+  return rows;
+}
+
+// ── Sync History ──────────────────────────────────────────────
+
+/**
+ * Record a completed sync run with aggregate stats.
+ */
+export async function recordSyncRun(merchantId, { pushed, skipped, errors, totalRevenueCents, currency, status, errorMessage }) {
+  await query(
+    `INSERT INTO sync_history (merchant_id, transactions_pushed, transactions_skipped, total_errors, total_revenue_cents, currency, status, error_message)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [merchantId, pushed, skipped, errors, totalRevenueCents || 0, currency || 'USD', status || 'success', errorMessage || null]
+  );
+}
+
+/**
+ * Get total revenue in cents from all successful sync runs for a merchant.
+ */
+export async function getTotalRevenueSynced(merchantId) {
+  const { rows } = await query(
+    `SELECT COALESCE(SUM(total_revenue_cents), 0) as total_cents
+     FROM sync_history WHERE merchant_id = $1 AND status IN ('success', 'partial')`,
+    [merchantId]
+  );
+  return parseInt(rows[0]?.total_cents || '0', 10);
+}
+
+/**
+ * Get recent sync history for a merchant.
+ */
+export async function getSyncHistory(merchantId, limit = 20) {
+  const { rows } = await query(
+    `SELECT * FROM sync_history WHERE merchant_id = $1 ORDER BY synced_at DESC LIMIT $2`,
+    [merchantId, limit]
   );
   return rows;
 }

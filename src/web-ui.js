@@ -208,6 +208,43 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     .trust-item .t-label { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
     .trust-item .t-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
 
+    /* ── Dashboard: revenue card ── */
+    .revenue-card { background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border: 1px solid rgba(5,150,105,0.15); border-radius: var(--radius-lg); padding: 24px; text-align: center; box-shadow: var(--shadow-sm); }
+    .revenue-card .rev-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #059669; margin-bottom: 4px; }
+    .revenue-card .rev-amount { font-size: 36px; font-weight: 900; color: var(--text-primary); letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 8px; }
+    .revenue-card .rev-meta { display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 13px; color: var(--text-secondary); }
+    .revenue-card .btn-sm { background: var(--accent-gradient); color: #fff; border: none; padding: 6px 16px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+    .revenue-card .btn-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
+
+    /* ── Dashboard: sync history ── */
+    .sync-table { border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; }
+    .sync-table-header { display: flex; background: var(--bg); padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border-light); }
+    .sync-table-header .col-time { width: 80px; }
+    .sync-table-header .col-txns { width: 80px; text-align: center; }
+    .sync-table-header .col-revenue { flex: 1; text-align: right; }
+    .sync-table-header .col-status { width: 80px; text-align: right; }
+    .sync-table-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border-light); font-size: 13px; transition: background 0.15s; }
+    .sync-table-row:last-child { border-bottom: none; }
+    .sync-table-row:hover { background: var(--bg); }
+    .sync-table-row .col-time { width: 80px; color: var(--text-secondary); font-size: 12px; }
+    .sync-table-row .col-txns { width: 80px; text-align: center; color: var(--text-primary); }
+    .sync-table-row .col-txns span { font-weight: 600; }
+    .sync-table-row .col-revenue { flex: 1; text-align: right; font-weight: 600; color: var(--text-primary); }
+    .sync-table-row .col-status { width: 80px; text-align: right; }
+    .sync-table-row .status-dot { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; }
+    .sync-table-row .status-dot .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .sync-table-row .status-dot .dot.ok { background: #10b981; }
+    .sync-table-row .status-dot .dot.warn { background: #f59e0b; }
+    .sync-table-row .status-dot .dot.fail { background: #ef4444; }
+
+    /* ── Status pills ── */
+    .status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+    .status-pill.ok { background: rgba(5,150,105,0.08); color: #059669; border: 1px solid rgba(5,150,105,0.12); }
+    .status-pill.no { background: rgba(220,38,38,0.06); color: #dc2626; border: 1px solid rgba(220,38,38,0.1); }
+    .status-pill .pill-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .status-pill.ok .pill-dot { background: #10b981; }
+    .status-pill.no .pill-dot { background: #dc2626; }
+
     /* ── Text utilities ── */
     .text-center { text-align: center; }
     .mt-0 { margin-top: 0; }
@@ -516,56 +553,99 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
 
   <div class="card step-view" id="s-dashboard">
     <div id="dash-oauth-message" style="display:none;"></div>
-    <h2>Dashboard</h2>
-    <p>Stripe: <span id="stripe-status" class="badge badge-no">Not connected</span> &nbsp;&middot;&nbsp; PayPal: <span id="paypal-status" class="badge badge-no">Not connected</span></p>
-    <p style="font-size:14px;">Synced: <strong><span id="sync-count">0</span></strong> · Last sync: <span id="sync-time" style="color:#64748b;">Never</span></p>
-    <button id="btn-sync" onclick="syncNow()" style="margin-top:4px;">Sync now</button>
-    <div id="error-sync" class="error" style="margin-top:8px;"></div>
-    <div id="success-sync" class="success" style="margin-top:8px;"></div>
-    <div id="sync-errors-banner" style="display:none;margin-top:8px;padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:13px;">
-      <strong style="color:#991b1b;">⚠️ Sync errors detected</strong>
-      <div id="sync-errors-content" style="color:#7f1d1d;margin-top:4px;"></div>
-      <button onclick="syncNow()" style="margin-top:6px;padding:6px 16px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">Retry sync</button>
+
+    <!-- Header: title + status pills -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
+      <h2 style="margin:0;">Dashboard</h2>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span id="stripe-status" class="status-pill no"><span class="pill-dot"></span> Stripe: Not connected</span>
+        <span id="paypal-status" class="status-pill no"><span class="pill-dot"></span> PayPal: Not connected</span>
+      </div>
     </div>
 
-    <!-- Stripe connect (shown when Stripe is not connected) -->
-    <div id="stripe-connect-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
-      <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect Stripe</p>
-      <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Paste your Stripe secret key to connect.</p>
-      <input type="password" id="dash-stripe-key" placeholder="sk_live_... or sk_test_..." style="margin-bottom:8px;" />
-      <button id="btn-dash-stripe" onclick="dashConnectStripe()" style="width:100%;padding:12px;font-size:15px;background:#0f172a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">
-        Save Stripe Key
-      </button>
+    <!-- Revenue impact card -->
+    <div class="revenue-card">
+      <div class="rev-label">💰 Total PayPal revenue synced to Stripe</div>
+      <div class="rev-amount" id="rev-amount">$0.00</div>
+      <div class="rev-meta">
+        <span id="rev-sync-info">Last sync: Never</span>
+        <span>·</span>
+        <span id="rev-txn-count">0 transactions</span>
+        <span>·</span>
+        <button onclick="syncNow()" id="btn-sync" class="btn-sm">Sync now</button>
+      </div>
+      <div id="error-sync" class="error" style="margin-top:6px;"></div>
+      <div id="success-sync" class="success" style="margin-top:6px;"></div>
+    </div>
+
+    <!-- Sync error banner -->
+    <div id="sync-errors-banner" style="display:none;margin-top:12px;padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:13px;">
+      <strong style="color:#991b1b;">⚠️ Recent sync errors</strong>
+      <div id="sync-errors-content" style="color:#7f1d1d;margin-top:4px;"></div>
+    </div>
+
+    <!-- Sync history -->
+    <div id="sync-history-section" style="margin-top:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">Sync history</h3>
+      </div>
+      <div id="sync-history-table" class="sync-table">
+        <div class="sync-table-header">
+          <span class="col-time">Time</span>
+          <span class="col-txns">Transactions</span>
+          <span class="col-revenue">Revenue</span>
+          <span class="col-status">Status</span>
+        </div>
+        <div id="sync-history-rows">
+          <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No syncs yet. Click "Sync now" above to start.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr />
+
+    <!-- Plan -->
+    <div>
+      <p style="font-weight:600;margin-bottom:4px;">Plan</p>
+      <p style="font-size:13px;">Status: <span id="sub-status" class="badge badge-ok">Active</span> · <span id="sub-detail">7-day free trial</span></p>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button id="btn-subscribe" onclick="subscribe()" class="green">Subscribe — $49/mo</button>
+        <button id="btn-manage" onclick="manageBilling()" style="display:none;">Manage billing</button>
+      </div>
+      <div id="error-billing" class="error" style="margin-top:4px;"></div>
+    </div>
+
+    <hr />
+
+    <!-- Stripe connect (inline) -->
+    <div id="stripe-connect-section" style="display:none;">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">Connect Stripe</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Paste your Stripe secret key. Read-only access.</p>
+      <div style="display:flex;gap:8px;">
+        <input type="password" id="dash-stripe-key" placeholder="sk_live_... or sk_test_..." style="flex:1;margin-bottom:0;" />
+        <button id="btn-dash-stripe" onclick="dashConnectStripe()" style="padding:10px 20px;white-space:nowrap;">Connect</button>
+      </div>
       <div id="error-stripe-connect" class="error" style="margin-top:6px;"></div>
       <div id="success-stripe-connect" class="success" style="margin-top:6px;"></div>
     </div>
 
-    <!-- PayPal config (shown when Stripe is connected but PayPal is not) -->
-    <div id="paypal-config-section" style="display:none;margin-top:16px;padding:16px;background:#f8fafc;border-radius:10px;border:1px solid #f1f5f9;">
-      <p style="font-weight:600;font-size:14px;margin-bottom:6px;">Connect PayPal</p>
-      <p style="font-size:13px;color:#64748b;margin-bottom:10px;">You'll need your PayPal API credentials.</p>
-      <label>PayPal Client ID</label>
-      <input type="text" id="dash-paypal-id" placeholder="A..." />
-      <label>PayPal Client Secret</label>
-      <input type="password" id="dash-paypal-secret" placeholder="E..." />
+    <!-- PayPal config (inline) -->
+    <div id="paypal-config-section" style="display:none;margin-top:16px;">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">Connect PayPal</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Enter your PayPal API credentials.</p>
+      <input type="text" id="dash-paypal-id" placeholder="PayPal Client ID" style="margin-bottom:8px;" />
+      <input type="password" id="dash-paypal-secret" placeholder="PayPal Client Secret" style="margin-bottom:8px;" />
       <button id="btn-dash-paypal" onclick="configurePaypal()">Save PayPal</button>
       <div id="error-paypal" class="error" style="margin-top:6px;"></div>
       <div id="success-paypal" class="success" style="margin-top:6px;"></div>
     </div>
 
     <hr />
-    <div>
-      <p style="font-weight:600;margin-bottom:4px;">Plan</p>
-      <p style="font-size:13px;">Status: <span id="sub-status" class="badge badge-ok">Active</span> · <span id="sub-detail">7-day free trial</span></p>
-      <button id="btn-subscribe" onclick="subscribe()" class="green" style="margin-top:8px;">Subscribe — $49/mo</button>
-      <button id="btn-manage" onclick="manageBilling()" style="display:none;">Manage billing</button>
-      <div id="error-billing" class="error" style="margin-top:4px;"></div>
-    </div>
-    <hr />
+
     <details style="margin-top:12px;cursor:pointer;">
-      <summary style="font-size:13px;color:#94a3b8;">⚠️ Danger Zone</summary>
+      <summary style="font-size:13px;color:var(--text-muted);">⚠️ Danger Zone</summary>
       <div style="margin-top:8px;padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;">
-        <p style="font-size:13px;color:#991b1b;margin-bottom:8px;font-weight:500;">Reset removes your Stripe and PayPal credentials from this browser. Sync will stop.</p>
+        <p style="font-size:13px;color:#991b1b;margin-bottom:8px;font-weight:500;">Reset removes your Stripe and PayPal credentials. Sync will stop.</p>
         <button onclick="resetAll()" class="red">Reset Everything</button>
       </div>
     </details>
@@ -785,40 +865,99 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   }
 
   async function loadDashboard() {
-    try {
-      const r = await fetch(API + '/api/status', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
-      const d = await r.json();
-      document.getElementById('stripe-status').textContent = d.stripe?.connected ? '✅ Connected' : '❌ Not connected';
-      document.getElementById('stripe-status').className = 'badge ' + (d.stripe?.connected ? 'badge-ok' : 'badge-no');
-      document.getElementById('paypal-status').textContent = d.paypal?.connected ? '✅ Connected' : '❌ Not connected';
-      document.getElementById('paypal-status').className = 'badge ' + (d.paypal?.connected ? 'badge-ok' : 'badge-no');
-      if (d.sync) {
-        document.getElementById('sync-count').textContent = d.sync.totalSynced || 0;
-        document.getElementById('sync-time').textContent = d.sync.lastSyncAt ? new Date(d.sync.lastSyncAt).toLocaleDateString() : 'Never';
+    // Fetch status and sync history concurrently
+    const [statusRes, historyRes] = await Promise.allSettled([
+      fetch(API + '/api/status', { headers: { 'Authorization': 'Bearer ' + API_KEY } }),
+      fetch(API + '/api/sync-history', { headers: { 'Authorization': 'Bearer ' + API_KEY } }),
+    ]);
 
-        // Show error banner if there are recent sync errors
-        const errorBanner = document.getElementById('sync-errors-banner');
-        const errorContent = document.getElementById('sync-errors-content');
-        if (d.sync.errors && d.sync.errors.length > 0) {
-          const err = d.sync.errors[0];
-          const time = err.time ? new Date(err.time).toLocaleString() : 'recently';
-          errorContent.innerHTML = d.sync.errors.length === 1
-            ? 'Last sync failed: <code>' + escapeHtml(err.error) + '</code> (' + time + ')'
-            : d.sync.errors.length + ' errors since last successful sync. Latest: <code>' + escapeHtml(err.error) + '</code> (' + time + ')';
-          errorBanner.style.display = 'block';
+    // ── Status ──
+    if (statusRes.status === 'fulfilled') {
+      try {
+        const d = await statusRes.value.json();
+
+        // Status pills
+        const stripePill = document.getElementById('stripe-status');
+        const paypalPill = document.getElementById('paypal-status');
+        if (d.stripe?.connected) {
+          stripePill.className = 'status-pill ok';
+          stripePill.innerHTML = '<span class="pill-dot"></span> Stripe: Connected' + (d.stripe.accountId ? ' <span style="font-weight:400;color:var(--text-muted);font-size:11px;">' + d.stripe.accountId.substring(0,10) + '…</span>' : '');
         } else {
-          errorBanner.style.display = 'none';
+          stripePill.className = 'status-pill no';
+          stripePill.innerHTML = '<span class="pill-dot"></span> Stripe: Not connected';
         }
-      }
-      // Show Stripe connect section when Stripe is not connected
-      const stripeSection = document.getElementById('stripe-connect-section');
-      stripeSection.style.display = d.stripe?.connected ? 'none' : 'block';
+        if (d.paypal?.connected) {
+          paypalPill.className = 'status-pill ok';
+          paypalPill.innerHTML = '<span class="pill-dot"></span> PayPal: Connected';
+        } else {
+          paypalPill.className = 'status-pill no';
+          paypalPill.innerHTML = '<span class="pill-dot"></span> PayPal: Not connected';
+        }
 
-      // Show PayPal config section only when Stripe is connected but PayPal is not
-      const paypalSection = document.getElementById('paypal-config-section');
-      paypalSection.style.display = (d.stripe?.connected && !d.paypal?.connected) ? 'block' : 'none';
-    } catch (e) { console.error(e); }
+        // Sync info in revenue card
+        if (d.sync) {
+          const syncInfo = document.getElementById('rev-sync-info');
+          const txnCount = document.getElementById('rev-txn-count');
+          syncInfo.textContent = d.sync.lastSyncAt ? 'Last sync: ' + timeAgo(d.sync.lastSyncAt) : 'Last sync: Never';
+          txnCount.textContent = (d.sync.totalSynced || 0) + ' transactions';
 
+          // Error banner
+          const errorBanner = document.getElementById('sync-errors-banner');
+          const errorContent = document.getElementById('sync-errors-content');
+          if (d.sync.errors && d.sync.errors.length > 0) {
+            const err = d.sync.errors[0];
+            const time = err.time ? timeAgo(err.time) : 'recently';
+            errorContent.innerHTML = d.sync.errors.length === 1
+              ? 'Last sync failed: <code>' + escapeHtml(err.error) + '</code> (' + time + ')'
+              : d.sync.errors.length + ' errors. Latest: <code>' + escapeHtml(err.error) + '</code> (' + time + ')';
+            errorBanner.style.display = 'block';
+          } else {
+            errorBanner.style.display = 'none';
+          }
+        }
+
+        // Connect sections
+        const stripeSection = document.getElementById('stripe-connect-section');
+        stripeSection.style.display = d.stripe?.connected ? 'none' : 'block';
+        const paypalSection = document.getElementById('paypal-config-section');
+        paypalSection.style.display = (d.stripe?.connected && !d.paypal?.connected) ? 'block' : 'none';
+      } catch (e) { console.error('Status fetch error:', e); }
+    }
+
+    // ── Sync history + revenue ──
+    if (historyRes.status === 'fulfilled') {
+      try {
+        const h = await historyRes.value.json();
+
+        // Revenue card
+        document.getElementById('rev-amount').textContent = h.totalRevenueFormatted || '$0.00';
+
+        // History table
+        const rowsContainer = document.getElementById('sync-history-rows');
+        if (!h.history || h.history.length === 0) {
+          rowsContainer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No syncs yet. Click "Sync now" above to start.</div>';
+        } else {
+          rowsContainer.innerHTML = h.history.map(row => {
+            const time = new Date(row.synced_at);
+            const timeStr = time.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const revCents = parseInt(row.total_revenue_cents || '0', 10);
+            const revStr = '$' + (revCents / 100).toFixed(2);
+            let dotClass = 'ok', statusLabel = 'Success';
+            if (row.status === 'failed' || row.status === 'error') { dotClass = 'fail'; statusLabel = 'Failed'; }
+            else if (row.status === 'partial') { dotClass = 'warn'; statusLabel = row.transactions_pushed + ' ok, ' + row.total_errors + ' err'; }
+            const txns = parseInt(row.transactions_pushed || '0', 10) + parseInt(row.transactions_skipped || '0', 10);
+            return '<div class="sync-table-row">'
+              + '<span class="col-time">' + timeStr + '</span>'
+              + '<span class="col-txns"><span>' + row.transactions_pushed + '</span> / ' + txns + '</span>'
+              + '<span class="col-revenue">' + revStr + '</span>'
+              + '<span class="col-status"><span class="status-dot"><span class="dot ' + dotClass + '"></span>' + statusLabel + '</span></span>'
+              + '</div>';
+          }).join('');
+        }
+      } catch (e) { console.error('History fetch error:', e); }
+    }
+
+    // ── Subscription ──
     try {
       const r = await fetch(API + '/api/subscription', { headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const sub = await r.json();
@@ -833,6 +972,21 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
         sd.textContent = 'Trial ended'; sb.style.display = 'inline-block'; sm.style.display = 'none';
       }
     } catch (e) { console.error(e); }
+  }
+
+  // ── Helper: relative time ──
+  function timeAgo(dateStr) {
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diff = now - then;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    if (days < 30) return days + 'd ago';
+    return new Date(dateStr).toLocaleDateString();
   }
 
   async function subscribe() {
@@ -916,7 +1070,8 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
       const d = await r.json();
       if (r.status === 402) { document.getElementById('error-sync').textContent = '⚠️ ' + (d.detail || 'Subscription required'); setLoading('btn-sync', false); loadDashboard(); return; }
       if (!r.ok) throw new Error(d.error);
-      document.getElementById('success-sync').textContent = '✅ Synced! ' + d.pushed + ' pushed, ' + d.skipped + ' skipped';
+      const rev = d.pushed > 0 ? ' · $' + (d.pushed * 0).toFixed(2) : '';
+      document.getElementById('success-sync').textContent = '✅ Synced ' + d.pushed + ' transactions' + (d.skipped > 0 ? ', ' + d.skipped + ' skipped' : '');
       setLoading('btn-sync', false);
       loadDashboard();
     } catch (e) { document.getElementById('error-sync').textContent = e.message; setLoading('btn-sync', false); }

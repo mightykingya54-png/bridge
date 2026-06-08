@@ -11,6 +11,7 @@ import {
   markSynced,
   addSyncError,
   updateSyncState,
+  recordSyncRun,
   lookupStripeRecordId,
   markRefundSynced,
   isRefundAlreadySynced,
@@ -71,6 +72,8 @@ export async function runSync(options = {}) {
   let pushed = 0;
   let skipped = 0;
   let errorCount = 0;
+  let totalRevenueCents = 0;
+  let revenueCurrency = 'USD';
   const recordIds = [];
 
   for (const txn of allTransactions) {
@@ -83,6 +86,8 @@ export async function runSync(options = {}) {
       const record = await pushPaymentRecord(txn, merchant.stripe_key);
       await markSynced(txn.processorTxnId, txn.processorName, record.id, merchantId);
       recordIds.push(record.id);
+      totalRevenueCents += txn.amount || 0;
+      revenueCurrency = txn.currency || 'USD';
       pushed++;
     } catch (err) {
       if (err.code === 'idempotency_error' || err.statusCode === 400) {
@@ -96,6 +101,27 @@ export async function runSync(options = {}) {
   }
 
   await updateSyncState(merchantId);
+
+  // Determine run status
+  let runStatus = 'success';
+  let runErrorMsg = null;
+  if (errorCount > 0 && pushed === 0) {
+    runStatus = 'failed';
+    runErrorMsg = `${errorCount} transaction(s) failed`;
+  } else if (errorCount > 0) {
+    runStatus = 'partial';
+    runErrorMsg = `${errorCount} transaction(s) failed`;
+  }
+
+  await recordSyncRun(merchantId, {
+    pushed,
+    skipped,
+    errors: errorCount,
+    totalRevenueCents,
+    currency: revenueCurrency,
+    status: runStatus,
+    errorMessage: runErrorMsg,
+  });
 
   return {
     pushed,
