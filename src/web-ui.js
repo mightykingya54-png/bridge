@@ -24,7 +24,6 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
   <meta property="og:description" content="PayPal income doesn't show in Stripe Revenue Recognition. Bridge reads PayPal transactions and pushes them in as Payment Records automatically. Daily sync. No spreadsheets.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="${BASE_URL}/">
-  <meta property="og:image" content="${BASE_URL}/og-image.png">
   <meta property="og:site_name" content="Bridge">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Bridge — PayPal to Stripe Revenue Recognition">
@@ -813,8 +812,8 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
       document.getElementById('s-configure').classList.add('active');
       document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
-      document.getElementById('error-stripe-connect').textContent = friendlyError(e.message);
-      setLoading('btn-dash-stripe', false);
+      document.getElementById('error-register').textContent = friendlyError(e.message);
+      setLoading('btn-register', false);
     }
   }
 
@@ -1034,7 +1033,7 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
       setLoading('btn-dash-stripe', false);
       loadDashboard();
     } catch (e) {
-      document.getElementById('error-stripe-connect').textContent = e.message;
+      document.getElementById('error-stripe-connect').textContent = friendlyError(e.message);
       setLoading('btn-dash-stripe', false);
     }
   }
