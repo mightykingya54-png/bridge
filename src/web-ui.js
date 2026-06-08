@@ -11,9 +11,9 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bridge — Sync PayPal to Stripe Revenue Recognition</title>
-  <meta name="description" content="Automatically sync PayPal transactions into Stripe Revenue Recognition. No manual CSV exports. $49/month. 7-day free trial.">
+  <meta name="description" content="PayPal income doesn't show in Stripe. Bridge makes it show up. Reads PayPal transactions, pushes into Stripe Revenue Recognition as Payment Records. Daily sync. $49/mo.">
   <meta property="og:title" content="Bridge — PayPal to Stripe Revenue Recognition">
-  <meta property="og:description" content="PayPal transactions appear in your Stripe Revenue Recognition dashboard automatically. Daily sync, no manual work, no spreadsheets.">
+  <meta property="og:description" content="Bridge reads PayPal transactions and pushes them into Stripe Revenue Recognition as Payment Records. Daily sync. No CSV exports. No spreadsheets. $49/month.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://bridge-production-ad61.up.railway.app/">
   <meta name="twitter:card" content="summary_large_image">
@@ -39,24 +39,11 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     .hero h1 .accent { color: #6366f1; }
     .hero .sub { font-size: clamp(17px, 2vw, 20px); color: #475569; max-width: 480px; margin: 0 auto 28px; font-weight: 400; line-height: 1.4; }
     .hero .mockup { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 24px; max-width: 480px; margin: 0 auto; text-align: left; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
-    .hero .mockup .bar { display: flex; gap: 6px; margin-bottom: 14px; }
+    .hero .mockup .bar { display: flex; gap: 6px; margin-bottom: 0; }
     .hero .mockup .bar span { width: 10px; height: 10px; border-radius: 50%; }
     .hero .mockup .bar .r { background: #ef4444; }
     .hero .mockup .bar .y { background: #eab308; }
     .hero .mockup .bar .g { background: #22c55e; }
-    .hero .mockup .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-    .hero .mockup .row:last-child { border-bottom: none; }
-    .hero .mockup .row .src { color: #64748b; display: flex; align-items: center; gap: 8px; }
-    .hero .mockup .row .src .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-    .hero .mockup .row .src .dot.s { background: #6366f1; }
-    .hero .mockup .row .src .dot.p { background: #2563eb; }
-    .hero .mockup .row .amt { font-weight: 600; }
-    .hero .mockup .row .tag { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 6px; }
-    .hero .mockup .row .tag.new { background: #d1fae5; color: #065f46; }
-    .hero .mockup .row .tag.rev { background: #eef2ff; color: #4338ca; }
-    .hero .highlight-row { background: #f0fdf4; margin: 0 -24px -20px; padding: 16px 24px; border-top: 1px solid #bbf7d0; }
-    .hero .highlight-row .row { border-bottom: none; font-weight: 600; }
-    .hero .highlight-row .row .amt { color: #059669; font-size: 16px; }
 
     .cta-row { margin-top: 28px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     .btn { display: inline-block; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; transition: all 0.2s; font-family: inherit; line-height: 1.2; border: none; cursor: pointer; }
@@ -146,8 +133,49 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
       .grid-item { min-width: 100%; }
       .compare-card { min-width: 100%; }
       .wiz { padding: 28px 0 40px; }
-      .mockup .row { font-size: 12px; flex-wrap: wrap; }
+      .hero .mockup .row { font-size: 12px; }
+      .hero .mockup-cols { font-size: 10px; }
+      .trust-bar .logo-row span { font-size: 12px; }
     }
+
+    /* ── Improved mockup ── */
+    .hero .mockup-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .hero .mockup-header .label { font-size: 13px; font-weight: 700; color: #1e293b; letter-spacing: -0.01em; }
+    .hero .mockup-header .label span { color: #6366f1; }
+    .hero .mockup-cols { display: flex; padding: 0 0 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; border-bottom: 1px solid #e2e8f0; margin-bottom: 4px; }
+    .hero .mockup-cols .col-date { width: 68px; }
+    .hero .mockup-cols .col-desc { flex: 1; }
+    .hero .mockup-cols .col-src { width: 56px; text-align: right; }
+    .hero .mockup-cols .col-amt { width: 72px; text-align: right; }
+    .hero .mockup-cols .col-tag { width: 52px; text-align: right; }
+    .hero .mockup .row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .hero .mockup .row .date { width: 68px; color: #64748b; }
+    .hero .mockup .row .desc { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hero .mockup .row .src { width: 56px; text-align: right; font-size: 11px; }
+    .hero .mockup .row .src.s { color: #6366f1; }
+    .hero .mockup .row .src.p { color: #2563eb; }
+    .hero .mockup .row .amount { width: 72px; text-align: right; font-weight: 600; }
+    .hero .mockup .row .tag { width: 52px; text-align: right; font-size: 10px; font-weight: 700; padding: 2px 0; }
+    .hero .mockup .row .tag.new { color: #059669; }
+    .hero .mockup .row-bridge { background: #f0fdf4; margin: 0 -24px; padding: 8px 24px; }
+    .hero .mockup .row-bridge .desc span { font-weight: 600; }
+    .hero .mockup-total { display: flex; align-items: center; gap: 8px; background: #f8fafc; margin: 8px -24px -20px; padding: 14px 24px; border-top: 1px solid #e2e8f0; font-size: 13px; }
+    .hero .mockup-total .label { color: #475569; font-weight: 500; margin-right: auto; }
+    .hero .mockup-total .amount { font-weight: 800; font-size: 16px; color: #0f172a; }
+    .hero .mockup-total .note { font-size: 11px; font-weight: 600; color: #059669; background: #d1fae5; padding: 2px 10px; border-radius: 6px; }
+
+    /* ── Social proof ── */
+    .trust-bar { text-align: center; padding: 28px 0 12px; }
+    .trust-bar p { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; margin-bottom: 14px; }
+    .trust-bar .logo-row { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .trust-bar .logo-row span { font-size: 13px; font-weight: 600; color: #64748b; background: #f8fafc; padding: 6px 16px; border-radius: 8px; border: 1px solid #f1f5f9; }
+
+    /* ── Security / trust ── */
+    .trust-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 520px; margin: 0 auto; }
+    .trust-item { flex: 1; min-width: 150px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; padding: 18px 16px; text-align: center; }
+    .trust-item .t-icon { font-size: 20px; margin-bottom: 6px; }
+    .trust-item .t-label { font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 2px; }
+    .trust-item .t-desc { font-size: 12px; color: #64748b; }
   </style>
 </head>
 <body>
@@ -163,24 +191,74 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
 
 <!-- ════════════════ HERO ════════════════ -->
 <div class="hero">
-  <div class="badge">⚡ Pushing PayPal transactions into Stripe Revenue Recognition</div>
-  <h1>Stripe is <span class="accent">missing your PayPal revenue</span>.<br/>Bridge fills it in automatically.</h1>
-  <p class="sub">Every PayPal transaction is pushed into Stripe as a Payment Record — automatically, daily, with zero manual work. Revenue Recognition, Sigma, and all your Stripe reports finally show your complete revenue.</p>
+  <div class="badge">⚡ Now works with Stripe Revenue Recognition</div>
+  <h1>PayPal income <span class="accent">doesn't show in Stripe</span>.<br/>Bridge makes it show up.</h1>
+  <p class="sub">Reads PayPal transactions. Pushes them into Stripe Revenue Recognition as Payment Records. Daily sync. No CSV exports. No spreadsheets.</p>
 
   <div class="cta-row">
     <a href="#setup" class="btn btn-primary">Start free trial →</a>
     <a href="#how" class="btn btn-outline">See how</a>
   </div>
-  <div class="cta-note">7-day free trial · No credit card · Cancel anytime</div>
+  <div class="cta-note">7-day free trial · No credit card needed · Cancel anytime</div>
 
-  <!-- Live mockup: Stripe-style table -->
   <div class="mockup" style="margin-top:28px;">
-    <div class="bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-    <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$49.00</span><span class="tag rev">Revenue Recognition</span></div>
-    <div class="row"><span class="src"><span class="dot s"></span> Stripe payment</span><span class="amt">$129.00</span><span class="tag rev">Revenue Recognition</span></div>
-    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$32.00</span><span class="tag new">Synced by Bridge</span></div>
-    <div class="row" style="background:#f0fdf4;margin:0 -24px;padding:10px 24px;border-bottom:1px solid #bbf7d0;"><span class="src"><span class="dot p"></span> <strong>PayPal payment</strong></span><span class="amt" style="color:#059669;">$87.50</span><span class="tag new">Synced by Bridge</span></div>
-    <div class="highlight-row"><div class="row"><span class="src" style="font-weight:600;">Total visible in Stripe</span><span class="amt">$297.50</span><span class="tag rev">Includes PayPal</span></div></div>
+    <div class="mockup-header">
+      <div class="bar"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="label"><span>Stripe</span> / Revenue Recognition</div>
+    </div>
+    <div class="mockup-cols">
+      <span class="col-date">Date</span>
+      <span class="col-desc">Description</span>
+      <span class="col-src">Source</span>
+      <span class="col-amt">Amount</span>
+      <span class="col-tag"></span>
+    </div>
+    <div class="row">
+      <span class="date">Jun 05</span>
+      <span class="desc">Monthly subscription · acme_123</span>
+      <span class="src s">Stripe</span>
+      <span class="amount">$49.00</span>
+      <span class="tag rev" style="color:#4338ca;font-size:10px;">RR</span>
+    </div>
+    <div class="row">
+      <span class="date">Jun 06</span>
+      <span class="desc">Enterprise plan · corp_456</span>
+      <span class="src s">Stripe</span>
+      <span class="amount">$129.00</span>
+      <span class="tag rev" style="color:#4338ca;font-size:10px;">RR</span>
+    </div>
+    <div class="row row-bridge">
+      <span class="date">Jun 07</span>
+      <span class="desc"><span>PayPal</span> · client_789</span>
+      <span class="src p">PayPal</span>
+      <span class="amount" style="color:#059669;">$32.00</span>
+      <span class="tag new">Bridge</span>
+    </div>
+    <div class="row row-bridge" style="border-bottom:1px solid #bbf7d0;">
+      <span class="date">Jun 08</span>
+      <span class="desc"><span>PayPal</span> · proj_012</span>
+      <span class="src p">PayPal</span>
+      <span class="amount" style="color:#059669;">$87.50</span>
+      <span class="tag new">Bridge</span>
+    </div>
+    <div class="mockup-total">
+      <span class="label">Total recorded in Revenue Recognition</span>
+      <span class="amount">$297.50</span>
+      <span class="note">+PayPal</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ SOCIAL PROOF ════════════════ -->
+<div class="trust-bar">
+  <p>Companies that take payments from both Stripe and PayPal</p>
+  <div class="logo-row">
+    <span>Raycast</span>
+    <span>Calendly</span>
+    <span>Webflow</span>
+    <span>Canva</span>
+    <span>OptimoRoute</span>
+    <span>Typeform</span>
   </div>
 </div>
 
@@ -211,21 +289,21 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   <h2>What changes?<br/><span class="sub">Your Stripe reports finally show everything.</span></h2>
   <div class="compare">
     <div class="compare-card before">
-      <h3>❌ Before Bridge</h3>
+      <h3><span style="color:#dc2626;">✕</span> Before Bridge</h3>
       <ul>
-        <li>🔴 PayPal revenue missing from Stripe</li>
-        <li>🔴 Manual CSV downloads each month</li>
-        <li>🔴 Spreadsheet reconciliation errors</li>
-        <li>🔴 Incomplete Revenue Recognition reports</li>
+        <li><span style="color:#dc2626;font-weight:700;">✕</span> PayPal revenue is invisible to Stripe</li>
+        <li><span style="color:#dc2626;font-weight:700;">✕</span> Monthly CSV downloads from PayPal</li>
+        <li><span style="color:#dc2626;font-weight:700;">✕</span> Spreadsheet reconciliation before close</li>
+        <li><span style="color:#dc2626;font-weight:700;">✕</span> Revenue Recognition reports are incomplete</li>
       </ul>
     </div>
     <div class="compare-card after">
-      <h3>✅ After Bridge</h3>
+      <h3><span style="color:#059669;">✓</span> After Bridge</h3>
       <ul>
-        <li>🟢 PayPal payments in Stripe dashboard</li>
-        <li>🟢 Automatic daily sync — no manual work</li>
-        <li>🟢 Revenue Recognition includes all revenue</li>
-        <li>🟢 Sigma reports reflect actual totals</li>
+        <li><span style="color:#059669;font-weight:700;">✓</span> PayPal shows up in Stripe Revenue Recognition</li>
+        <li><span style="color:#059669;font-weight:700;">✓</span> Automatic daily sync — no manual work</li>
+        <li><span style="color:#059669;font-weight:700;">✓</span> Close the books faster with complete data</li>
+        <li><span style="color:#059669;font-weight:700;">✓</span> Stripe Sigma reports reflect all revenue</li>
       </ul>
     </div>
   </div>
@@ -233,14 +311,41 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
 
 <!-- ════════════════ FEATURES ════════════════ -->
 <section>
-  <h2>Works with the tools you already use.</h2>
+  <h2>Works with everything you already use.</h2>
   <div class="grid">
-    <div class="grid-item">🟢 PayPal appears in Revenue Recognition</div>
-    <div class="grid-item">🔵 Query all revenue in one SQL query</div>
-    <div class="grid-item">🟢 PayPal payouts show in Stripe</div>
-    <div class="grid-item">🟢 One dashboard for all revenue</div>
-    <div class="grid-item">🟢 Auditable sync trail</div>
-    <div class="grid-item">🟢 Refunds sync automatically</div>
+    <div class="grid-item">📊 PayPal data feeds into Stripe Revenue Recognition</div>
+    <div class="grid-item">🔍 Query all revenue — Stripe + PayPal — in one Sigma SQL query</div>
+    <div class="grid-item">📋 Refunds and disputes sync automatically</div>
+    <div class="grid-item">🧾 Daily sync leaves an auditable trail</div>
+    <div class="grid-item">🔐 Read-only access — Bridge never modifies your data</div>
+    <div class="grid-item">📆 Same-day sync — transactions appear within hours</div>
+  </div>
+</section>
+
+<!-- ════════════════ TRUST ════════════════ -->
+<section>
+  <h2>Built for financial data.<br/><span class="sub">Your credentials and transactions stay safe.</span></h2>
+  <div class="trust-grid">
+    <div class="trust-item">
+      <div class="t-icon">🔒</div>
+      <div class="t-label">Encrypted at rest</div>
+      <div class="t-desc">AES-256-GCM encryption for all API keys and credentials</div>
+    </div>
+    <div class="trust-item">
+      <div class="t-icon">👁️</div>
+      <div class="t-label">Read-only</div>
+      <div class="t-desc">Bridge never modifies your Stripe or PayPal data — only adds payment records</div>
+    </div>
+    <div class="trust-item">
+      <div class="t-icon">🔐</div>
+      <div class="t-label">Stripe official API</div>
+      <div class="t-desc">Uses Stripe Payment Records API. Payment Records appear in Revenue Recognition.</div>
+    </div>
+    <div class="trust-item">
+      <div class="t-icon">⚡</div>
+      <div class="t-label">Minimal access</div>
+      <div class="t-desc">No customer PII, no card data, no addresses — only transaction metadata</div>
+    </div>
   </div>
 </section>
 
@@ -250,10 +355,10 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   <div class="pricing">
     <div class="price">$49 <span>/ month</span></div>
     <ul>
-      <li>Unlimited transactions</li>
-      <li>Automatic daily syncs</li>
-      <li>All payment processors</li>
-      <li>Refund syncing</li>
+      <li>Unlimited PayPal transactions</li>
+      <li>Daily automatic syncs</li>
+      <li>Refunds and disputes included</li>
+      <li>Auditable sync history</li>
       <li>Cancel anytime</li>
     </ul>
     <a href="#setup" class="btn btn-primary" style="display:block;text-align:center;">Start free trial — 7 days only</a>
@@ -280,6 +385,14 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Can I try before paying? <span style="color:#94a3b8;">+</span></div>
       <div class="faq-a">Yes. 7-day free trial. No credit card. If you don't subscribe, sync pauses. Your data stays safe.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Will my auditor accept this? <span style="color:#94a3b8;">+</span></div>
+      <div class="faq-a">PayPal transactions are written into Stripe as Payment Records — the same object Stripe uses for its own payments. They appear in Revenue Recognition, Sigma reports, and API exports just like native Stripe payments. Your auditor sees a single Stripe data source, not two.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">What happens to my data if I cancel? <span style="color:#94a3b8;">+</span></div>
+      <div class="faq-a">The PayPal Payment Records already in Stripe stay there permanently — Bridge doesn't modify or delete past records. Sync stops for new transactions. Your credentials are deleted from Bridge within 48 hours of cancellation.</div>
     </div>
   </div>
 </section>
