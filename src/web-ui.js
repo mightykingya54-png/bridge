@@ -2,8 +2,12 @@
  * Web UI — Landing page + setup wizard.
  * Core principle: every visitor must understand what Bridge does in ≤ 3 seconds.
  */
-export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
+export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
   app.get('/app', (req, res) => {
+    // Dynamically determine base URL from request — works on any hosting domain.
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers['host'] || _BASE_URL;
+    const BASE_URL = `${proto}://${host}`;
     res.set('Cache-Control', 'no-store, must-revalidate');
     res.send(`<!DOCTYPE html>
 <html lang="en">
