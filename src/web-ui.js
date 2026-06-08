@@ -806,15 +806,22 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
       if (!r.ok) throw new Error(d.error || 'Registration failed');
       API_KEY = d.apiKey;
       localStorage.setItem('bridge_api_key', API_KEY);
-      // Skip API key display — go straight to configure
+      // Show the API key so user can copy it before connecting accounts
       document.getElementById('api-key-display').textContent = d.apiKey;
       document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
-      document.getElementById('s-configure').classList.add('active');
-      document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('s-apikey').classList.add('active');
+      document.getElementById('s-apikey').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
       document.getElementById('error-register').textContent = friendlyError(e.message);
       setLoading('btn-register', false);
     }
+  }
+
+  // Show the configure step (called from API key display step)
+  function showCfg() {
+    document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-configure').classList.add('active');
+    document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
   }
 
   async function configurePaypal() {
