@@ -586,6 +586,9 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
       <input type="text" id="paypal-client-id" placeholder="A..." />
       <label>PayPal Client Secret <a href="https://developer.paypal.com/dashboard/applications" target="_blank" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">Where to find this →</a></label>
       <input type="password" id="paypal-client-secret" placeholder="E..." />
+      <button id="btn-save-paypal" onclick="savePaypal()" style="margin-top:6px;">Save PayPal</button>
+      <div id="error-paypal-setup" class="error" style="margin-top:4px;"></div>
+      <div id="success-paypal-setup" class="success" style="margin-top:4px;"></div>
     </details>
   </div>
 
@@ -857,6 +860,30 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
     } catch (e) {
       document.getElementById('error-configure').textContent = friendlyError(e.message);
       setLoading('btn-configure', false);
+    }
+  }
+
+  // Save PayPal credentials from setup wizard (called from "Save PayPal" button in configure step)
+  async function savePaypal() {
+    const id = document.getElementById('paypal-client-id').value;
+    const secret = document.getElementById('paypal-client-secret').value;
+    if (!id || !secret) { document.getElementById('error-paypal-setup').textContent = 'Fill in both PayPal fields'; return; }
+    setLoading('btn-save-paypal', true);
+    document.getElementById('error-paypal-setup').textContent = '';
+    document.getElementById('success-paypal-setup').textContent = '';
+    try {
+      const r = await fetch(API + '/api/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+        body: JSON.stringify({ paypalClientId: id, paypalClientSecret: secret }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed to save PayPal');
+      document.getElementById('success-paypal-setup').textContent = '✅ PayPal saved! You can now continue to the dashboard.';
+      setLoading('btn-save-paypal', false);
+    } catch (e) {
+      document.getElementById('error-paypal-setup').textContent = friendlyError(e.message);
+      setLoading('btn-save-paypal', false);
     }
   }
 
