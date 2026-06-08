@@ -46,7 +46,7 @@ import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 
 const app = express();
-app.use(compression());  // gzip all responses
+app.use(compression({ threshold: 0 }));  // gzip all responses (threshold 0 = compress everything)
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
 
