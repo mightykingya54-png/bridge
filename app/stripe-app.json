@@ -13,29 +13,9 @@
     ],
     "content_security_policy": {
       "connect-src": [
-        "https://bridge-production-ad61.up.railway.app/api/",
+"https://bridge-production-ad61.up.railway.app/api/",
+
         "https://bridge-production-ad61.up.railway.app/app"
-      ],
-      "purpose": "Allow Bridge to connect to its backend server for sync operations."
-    }
-  },
-  "extensions": null,
-  "permissions": [
-    {
-      "permission": "payment_records_write",
-      "purpose": "Sync PayPal transactions into Stripe Payment Records API so all revenue appears in Stripe."
-    },
-    {
-      "permission": "payment_records_read",
-      "purpose": "Read existing payment records to verify sync status and avoid duplicate pushes."
-    },
-    {
-      "permission": "balance_read",
-      "purpose": "Display synced transaction summaries in the Bridge dashboard."
-    }
-  ],
-  "allowed_redirect_uris": [
-    "https://bridge-production-ad61.up.railway.app/app"
   ],
   "distribution_type": "private",
   "stripe_api_access_type": "platform",

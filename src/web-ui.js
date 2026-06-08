@@ -13,14 +13,14 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
   <title>Bridge — Sync PayPal to Stripe Revenue Recognition</title>
   <meta name="description" content="PayPal income doesn't show in Stripe. Bridge makes it show up. Reads PayPal transactions, pushes into Stripe Revenue Recognition as Payment Records. Daily sync. $49/mo.">
   <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://bridge-production-ad61.up.railway.app/">
+  <link rel="canonical" href="${BASE_URL}/">
 
   <!-- Open Graph -->
   <meta property="og:title" content="Bridge — Sync PayPal to Stripe Revenue Recognition">
   <meta property="og:description" content="PayPal income doesn't show in Stripe Revenue Recognition. Bridge reads PayPal transactions and pushes them in as Payment Records automatically. Daily sync. No spreadsheets.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://bridge-production-ad61.up.railway.app/">
-  <meta property="og:image" content="https://bridge-production-ad61.up.railway.app/og-image.png">
+  <meta property="og:url" content="${BASE_URL}/">
+  <meta property="og:image" content="${BASE_URL}/og-image.png">
   <meta property="og:site_name" content="Bridge">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Bridge — PayPal to Stripe Revenue Recognition">
@@ -35,7 +35,7 @@ export function setupWebUI(app, BASE_URL, PADDLE_CLIENT_TOKEN) {
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
     "description": "Syncs PayPal transactions into Stripe Revenue Recognition automatically. Daily sync, no manual CSV exports, no spreadsheets.",
-    "url": "https://bridge-production-ad61.up.railway.app",
+    "url": "${BASE_URL}",
     "offers": {
       "@type": "Offer",
       "price": "49",

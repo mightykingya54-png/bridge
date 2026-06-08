@@ -13,7 +13,7 @@ import { config } from './config.js';
 import { pushPaymentRecord, pushRefundRecord, testConnection as testStripe } from './connectors/stripe.js';
 import { fetchTransactions, testConnection as testPaypal } from './connectors/paypal.js';
 import { runSync, processRefund } from './sync/engine.js';
-import { startScheduler } from './sync/scheduler.js';
+import { startScheduler, runMerchantSync } from './sync/scheduler.js';
 import { setupWebUI } from './web-ui.js';
 import {
   createMerchant,
@@ -46,6 +46,7 @@ import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 
 const app = express();
+app.set('trust proxy', 1);  // Render sits behind a proxy — trust X-Forwarded-For for rate limiting
 app.use(compression({ threshold: 0 }));  // gzip all responses (threshold 0 = compress everything)
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
@@ -155,6 +156,40 @@ const scheduler = startScheduler({
   onSyncComplete: (result) => {
     console.log(`⏰ Scheduled sync done: ${result.pushed} pushed, ${result.skipped} skipped`);
   },
+});
+
+// ── External cron trigger (for Render free tier — app sleeps) ───
+// cron-job.org hits this endpoint daily to wake the app + trigger sync.
+// Requires CRON_SECRET env var.
+const CRON_SECRET = process.env.CRON_SECRET || 'change-me-in-production';
+app.get('/api/cron/sync', async (req, res) => {
+  if (req.query.key !== CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  console.log('⏰ Cron-triggered sync starting...');
+  const merchants = (await getAllMerchants()).filter(m => m.stripe_key && m.paypal_client_id && m.paypal_client_secret);
+  if (merchants.length === 0) {
+    return res.json({ pushed: 0, skipped: 0, errors: 0, message: 'No merchants configured' });
+  }
+  let totalPushed = 0;
+  let totalSkipped = 0;
+  let totalErrors = 0;
+  for (const merchant of merchants) {
+    const { allowed } = await canSync(merchant.id);
+    if (!allowed) continue;
+    try {
+      const result = await runMerchantSync(merchant);
+      totalPushed += result.pushed;
+      totalSkipped += result.skipped;
+      totalErrors += result.errors;
+    } catch (err) {
+      console.error(`   ❌ Cron sync failed for ${merchant.id}: ${err.message}`);
+      await addSyncError(`Cron-triggered sync failed: ${err.message}`, null, merchant.id);
+      totalErrors++;
+    }
+  }
+  console.log(`⏰ Cron-triggered sync: ${totalPushed} pushed, ${totalSkipped} skipped, ${totalErrors} errors`);
+  res.json({ pushed: totalPushed, skipped: totalSkipped, errors: totalErrors });
 });
 
 // ── Routes ──────────────────────────────────────────────────────
@@ -890,9 +925,9 @@ app.get('/api/admin/stats', async (req, res) => {
 });
 
 // ── Serve Web UI (standalone setup page) ─────────────────────────
-// Hardcode the production URL. This is the canonical domain for Bridge.
-// Never fall back to localhost — Railway always provides a public URL.
-const BASE_URL = 'https://bridge-production-ad61.up.railway.app';
+// BASE_URL is set via env var (Render provides the URL after first deploy).
+// Fallback to localhost for local dev only.
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 setupWebUI(app, BASE_URL, config.paddle.clientToken);
 
 // ── Start server ────────────────────────────────────────────────
@@ -900,10 +935,9 @@ const PORT = 8080;
 
 async function start() {
   if (!config.databaseUrl) {
-    console.warn('⚠️  DATABASE_URL not set. Waiting for PostgreSQL plugin...');
-    console.warn('   Go to Railway dashboard → Project → Plugins → Add PostgreSQL');
-    console.warn('   Server will not handle requests until DATABASE_URL is configured.');
-    console.warn('   For now, start the server, add PostgreSQL in Railway UI, and redeploy.\n');
+    console.warn('⚠️  DATABASE_URL not set.');
+    console.warn('   Set DATABASE_URL in your hosting provider\'s environment variables.');
+    console.warn('   Server will not handle requests until DATABASE_URL is configured.\n');
   } else {
     // Initialize database schema
     await initDatabase();

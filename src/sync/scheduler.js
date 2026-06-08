@@ -88,7 +88,7 @@ export function startScheduler(callbacks = {}) {
 /**
  * Run one sync for a single merchant.
  */
-async function runMerchantSync(merchant) {
+export async function runMerchantSync(merchant) {
   const endDate = new Date();
   const startDate = new Date(Date.now() - SYNC_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
 
