@@ -824,6 +824,42 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
     document.getElementById('s-configure').scrollIntoView({ behavior: 'smooth' });
   }
 
+  // Save Stripe + optional PayPal credentials (called from configure step's "Save & continue")
+  async function configure() {
+    const stripeKey = document.getElementById('stripe-key').value;
+    if (!stripeKey) { document.getElementById('error-configure').textContent = 'Enter your Stripe secret key'; return; }
+    setLoading('btn-configure', true);
+    document.getElementById('error-configure').textContent = '';
+    document.getElementById('success-configure').textContent = '';
+
+    const body = { stripeKey };
+    // Check for optional PayPal credentials in the expandable section
+    const paypalId = document.getElementById('paypal-client-id').value;
+    const paypalSecret = document.getElementById('paypal-client-secret').value;
+    if (paypalId && paypalSecret) {
+      body.paypalClientId = paypalId;
+      body.paypalClientSecret = paypalSecret;
+    }
+
+    try {
+      const r = await fetch(API + '/api/configure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Configuration failed');
+      // Success — advance to dashboard
+      document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
+      document.getElementById('s-dashboard').classList.add('active');
+      document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
+      loadDashboard();
+    } catch (e) {
+      document.getElementById('error-configure').textContent = friendlyError(e.message);
+      setLoading('btn-configure', false);
+    }
+  }
+
   async function configurePaypal() {
     const id = document.getElementById('dash-paypal-id').value;
     const secret = document.getElementById('dash-paypal-secret').value;
