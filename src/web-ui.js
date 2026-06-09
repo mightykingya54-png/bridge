@@ -62,7 +62,9 @@ export function setupWebUI(app, _BASE_URL) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" as="style">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet">
-  <!-- Checkout uses server-redirect (Stripe Checkout) — no client-side payment library needed -->
+  <!-- Paddle Classic checkout overlay -->
+  <script src="https://cdn.paddle.com/paddle/v1/paddle.js"></script>
+  <script>Paddle.Setup({ vendor: 352887 });</script>
   <style>
     :root {
       --bg: #fafbfc;
@@ -1126,7 +1128,7 @@ export function setupWebUI(app, _BASE_URL) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       if (d.url) {
-        // Redirect to Stripe Checkout
+        // Redirect to checkout
         window.location.href = d.url;
       } else if (d.active) {
         document.getElementById('error-billing').textContent = 'Already subscribed.';
