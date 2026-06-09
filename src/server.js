@@ -875,11 +875,13 @@ app.post('/api/stripe-webhook', async (req, res) => {
   }
 });
 
-// ── Paddle Billing ─────────────────────────────────────────────
+// ── Checkout (Subscribe) ────────────────────────────────────────
 /**
  * POST /api/create-paddle-checkout
- * Creates or returns a Paddle checkout session for subscription.
- * Returns the price ID for overlay-based checkout.
+ * Creates a checkout session for subscription.
+ * PRIMARY method: Stripe Checkout (server-side redirect).
+ * FALLBACK for existing Paddle subscribers: Paddle portal.
+ * NEW subscribers always go through Stripe.
  */
 app.post('/api/create-paddle-checkout', async (req, res) => {
   try {
@@ -890,7 +892,7 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
     const merchant = req.merchant;
     const sub = await getSubscription(merchant.id);
 
-    // If already has a PAID subscription — redirect to billing portal
+    // Existing Paddle subscriber → Paddle portal
     if (sub.paddleSubscriptionId && config.paddle.apiKey) {
       try {
         const { Paddle } = await import('@paddle/paddle-node-sdk');
@@ -904,6 +906,8 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       }
       return res.json({ active: true });
     }
+
+    // Existing Stripe subscriber → Stripe Customer Portal
     if (sub.stripeSubscriptionId && sub.stripeCustomerId && config.stripe.secretKey) {
       try {
         const stripe = new Stripe(config.stripe.secretKey);
@@ -918,17 +922,10 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.json({ active: true });
     }
 
-    // If Paddle is configured, use Paddle overlay checkout
-    if (config.paddle.priceId && config.paddle.clientToken) {
-      console.log(`✅ Merchant ${merchant.id}: Paddle checkout items ready (price: ${config.paddle.priceId})`);
-      return res.json({ priceId: config.paddle.priceId });
-    }
-
-    // Fallback: create a Stripe Checkout session
-    console.log(`ℹ️  Paddle not configured — falling back to Stripe Checkout for ${merchant.id}`);
+    // NEW subscriber: create a Stripe Checkout session (primary billing)
     const stripe = new Stripe(config.stripe.secretKey);
     if (!config.stripe.priceId) {
-      return res.status(500).json({ error: 'No billing method configured. Set up Paddle or Stripe billing.' });
+      return res.status(500).json({ error: 'Billing not configured. Contact support.' });
     }
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -942,7 +939,7 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
     console.log(`✅ Merchant ${merchant.id}: Stripe Checkout session created (${session.id})`);
     res.json({ url: session.url });
   } catch (err) {
-    console.error('❌ Paddle checkout error:', err.message);
+    console.error('❌ Checkout error:', err.message);
     res.status(500).json({ error: `Checkout error: ${err.message}` });
   }
 });
@@ -1117,7 +1114,7 @@ app.get('/api/admin/stats', async (req, res) => {
 // BASE_URL is set via env var (Render provides the URL after first deploy).
 // Fallback to localhost for local dev only.
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-setupWebUI(app, BASE_URL, config.paddle.clientToken);
+setupWebUI(app, BASE_URL);
 
 // Sentry error handler (must be after all routes)
 if (process.env.SENTRY_DSN) {

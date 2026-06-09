@@ -2,7 +2,7 @@
  * Web UI — Landing page + setup wizard.
  * Core principle: every visitor must understand what Bridge does in ≤ 3 seconds.
  */
-export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
+export function setupWebUI(app, _BASE_URL) {
   app.get('/app', (req, res) => {
     // Dynamically determine base URL from request — works on any hosting domain.
     const proto = req.headers['x-forwarded-proto'] || 'https';
@@ -62,8 +62,7 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" as="style">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet">
-  <!-- Paddle.js for checkout overlay — loaded async so it doesn't block rendering -->
-  <script src="https://cdn.paddle.com/paddle/v2/paddle.js" async></script>
+  <!-- Checkout uses server-redirect (Stripe Checkout) — no client-side payment library needed -->
   <style>
     :root {
       --bg: #fafbfc;
@@ -707,23 +706,6 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
   const API = '${BASE_URL}';
   let API_KEY = localStorage.getItem('bridge_api_key') || '';
 
-  // Initialize Paddle.js with client-side token
-  const PADDLE_TOKEN = ${JSON.stringify(PADDLE_CLIENT_TOKEN || '')};
-  if (typeof Paddle !== 'undefined' && PADDLE_TOKEN) {
-    try {
-      Paddle.Initialize({ token: PADDLE_TOKEN });
-    } catch (e) {
-      console.error('Paddle init failed:', e);
-    }
-  } else if (PADDLE_TOKEN) {
-    // Paddle.js not loaded yet — wait and retry
-    document.addEventListener('DOMContentLoaded', function() {
-      if (typeof Paddle !== 'undefined') {
-        try { Paddle.Initialize({ token: PADDLE_TOKEN }); } catch (e) { console.error(e); }
-      }
-    });
-  }
-
   // Smooth scroll for anchor links
   document.querySelectorAll('a[href^="#"]').forEach(a => {
     a.addEventListener('click', function(e) {
@@ -1075,32 +1057,12 @@ export function setupWebUI(app, _BASE_URL, PADDLE_CLIENT_TOKEN) {
       const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      if (d.priceId) {
-        // Open Paddle checkout overlay with items directly
-        // Paddle.js handles customer creation, payment, and subscription setup
-        if (typeof Paddle !== 'undefined' && Paddle.Checkout) {
-          try {
-            await Paddle.Checkout.open({
-              items: [{ priceId: d.priceId, quantity: 1 }],
-              customData: { merchant_id: API_KEY },
-              settings: {
-                displayMode: 'overlay',
-                theme: 'light',
-              },
-            });
-            // Checkout completed — poll subscription status until webhook arrives
-            await pollSubscriptionStatus();
-          } catch (checkoutErr) {
-            // User closed or checkout failed — silently handle
-            loadDashboard();
-          }
-        } else {
-          throw new Error('Paddle.js not loaded. Please refresh and try again.');
-        }
-      } else if (d.url) {
+      if (d.url) {
+        // Redirect to Stripe Checkout
         window.location.href = d.url;
       } else if (d.active) {
         document.getElementById('error-billing').textContent = 'Already subscribed.';
+        loadDashboard();
       }
       setLoading('btn-subscribe', false);
     } catch (e) { document.getElementById('error-billing').textContent = friendlyError(e.message); setLoading('btn-subscribe', false); }
