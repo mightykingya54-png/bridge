@@ -922,7 +922,18 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.json({ active: true });
     }
 
-    // NEW subscriber: create a Stripe Checkout session (primary billing)
+    // NEW subscriber: prefer Paddle Checkout if configured
+    if (config.paddle.apiKey && config.paddle.priceId) {
+      try {
+        const paddleCheckoutUrl = `https://checkout.paddle.com/checkout/${config.paddle.priceId}?quantity=1&custom[merchant_id]=${merchant.id}&success_url=${encodeURIComponent(`${BASE_URL}/app?checkout=success`)}&cancel_url=${encodeURIComponent(`${BASE_URL}/app`)}`;
+        console.log(`✅ Merchant ${merchant.id}: Paddle Checkout URL generated`);
+        return res.json({ url: paddleCheckoutUrl });
+      } catch (paddleErr) {
+        console.warn(`⚠️  Paddle checkout failed, falling back to Stripe: ${paddleErr.message}`);
+      }
+    }
+
+    // Fallback: Stripe Checkout
     const stripe = new Stripe(config.stripe.secretKey);
     if (!config.stripe.priceId) {
       return res.status(500).json({ error: 'Billing not configured. Contact support.' });
@@ -941,6 +952,34 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
   } catch (err) {
     console.error('❌ Checkout error:', err.message);
     res.status(500).json({ error: `Checkout error: ${err.message}` });
+  }
+});
+
+/**
+ * POST /api/activate-subscription
+ * Called by frontend after successful Paddle checkout (webhook fallback).
+ * Activates subscription immediately so user sees paid status.
+ */
+app.post('/api/activate-subscription', async (req, res) => {
+  try {
+    if (!req.merchant) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const merchant = req.merchant;
+    const sub = await getSubscription(merchant.id);
+    if (sub.active && (sub.stripeSubscriptionId || sub.paddleSubscriptionId)) {
+      return res.json({ active: true, message: 'Already subscribed.' });
+    }
+    await updateSubscription(merchant.id, {
+      status: 'active',
+      tier: 'monthly',
+      paddleSubscriptionId: 'pending_' + Date.now(),
+    });
+    console.log(`✅ Merchant ${merchant.id}: subscription activated after checkout`);
+    res.json({ active: true });
+  } catch (err) {
+    console.error('❌ Activate subscription error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -788,7 +788,11 @@ export function setupWebUI(app, _BASE_URL) {
   // Handle checkout redirect params
   const params = new URLSearchParams(window.location.search);
   if (params.get('checkout') === 'success' && API_KEY) {
-    // Checkout completed — show dashboard and poll until webhook arrives
+    // Checkout completed — activate subscription immediately
+    fetch(API + '/api/activate-subscription', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } })
+      .then(r => r.json())
+      .then(d => console.log('Activation:', d))
+      .catch(e => console.warn('Activation error:', e));
     document.querySelectorAll('.step-view').forEach(s => s.classList.remove('active'));
     document.getElementById('s-dashboard').classList.add('active');
     document.getElementById('s-dashboard').scrollIntoView({ behavior: 'smooth' });
