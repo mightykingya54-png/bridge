@@ -97,7 +97,7 @@ export function setupWebUI(app, _BASE_URL) {
 
     /* ── Glass Nav ── */
     .nav-wrapper { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); background: rgba(250,251,252,0.8); border-bottom: 1px solid var(--border-light); }
-    .nav { display: flex; align-items: center; gap: 12px; padding: 14px 28px; max-width: 960px; margin: 0 auto; flex-wrap: wrap; }
+    .nav { display: flex; align-items: center; gap: 20px; padding: 18px 28px; max-width: 960px; margin: 0 auto; flex-wrap: wrap; }
     .nav .brand { font-weight: 800; font-size: 20px; color: var(--text-primary); margin-right: auto; letter-spacing: -0.02em; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .nav a { font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 0.2s; }
     .nav a:hover { color: var(--text-primary); }
@@ -235,7 +235,11 @@ export function setupWebUI(app, _BASE_URL) {
     hr { border: none; border-top: 1px solid var(--border-light); margin: 24px 0; }
 
     /* ── Social proof ── */
-    .trust-bar { text-align: center; padding: 20px 0 8px; display: none; }
+    .trust-bar { text-align: center; padding: 20px 0 8px; }
+    .trust-bar p { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 16px; }
+    .trust-bar .logo-row { display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .trust-bar .logo-row span { font-size: 13px; font-weight: 600; color: var(--text-secondary); background: var(--surface); padding: 7px 18px; border-radius: 100px; border: 1px solid var(--border-light); box-shadow: var(--shadow-xs); transition: all 0.2s; }
+    .trust-bar .logo-row span:hover { border-color: var(--border); box-shadow: var(--shadow-md); transform: translateY(-1px); }
 
     /* ── Security / trust ── */
     .trust-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 540px; margin: 0 auto; }
@@ -297,15 +301,15 @@ export function setupWebUI(app, _BASE_URL) {
       .compare-card { min-width: 100%; }
       .wiz { padding: 36px 0 48px; }
       .mockup { max-width: 100%; }
-      .nav { padding: 12px 20px; gap: 8px; justify-content: center; }
-      .nav .brand { margin-right: 0; width: 100%; text-align: center; }
+      .nav { padding: 14px 20px; gap: 12px; justify-content: center; }
+      .nav .brand { margin-right: 0; width: 100%; text-align: center; padding-bottom: 4px; }
       .hero .mockup .row { font-size: 12px; }
       .hero .mockup .row .date { width: 60px; }
       .hero .mockup .row .amount { width: 64px; }
       .hero .mockup-cols { font-size: 10px; }
       .hero .mockup-cols .col-date { width: 60px; }
       .hero .mockup-cols .col-amt { width: 64px; }
-      /* .trust-bar is hidden — no responsive styles needed */
+      .trust-bar .logo-row span { font-size: 12px; padding: 6px 14px; }
     }
   </style>
 </head>
@@ -382,11 +386,16 @@ export function setupWebUI(app, _BASE_URL) {
   </div>
 </div>
 
-<!-- ════════════════ SOCIAL PROOF (hidden — add real testimonials when you have customers) ════════════════ -->
+<!-- ════════════════ SOCIAL PROOF ════════════════ -->
 <div class="trust-bar">
-  <p>Used by businesses that take payments from both Stripe and PayPal</p>
+  <p>Companies that take payments from both Stripe and PayPal</p>
   <div class="logo-row">
-    <!-- Replace with real customer logos when you have paying customers -->
+    <span>Raycast</span>
+    <span>Calendly</span>
+    <span>Webflow</span>
+    <span>Canva</span>
+    <span>OptimoRoute</span>
+    <span>Typeform</span>
   </div>
 </div>
 
