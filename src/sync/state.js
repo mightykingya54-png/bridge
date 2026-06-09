@@ -306,11 +306,15 @@ export async function updateMerchantCredentials(id, credentials) {
   const values = [];
   let idx = 1;
 
-  // Encrypt sensitive fields before storing
+  // Encrypt sensitive fields before storing.
+  // Empty strings are passed through explicitly to allow credential clearing.
   const encrypted = { ...credentials };
   if (encrypted.stripe_key) encrypted.stripe_key = encrypt(encrypted.stripe_key);
+  else if (encrypted.stripe_key === '') encrypted.stripe_key = ''; // explicit empty = clear
   if (encrypted.paypal_client_id) encrypted.paypal_client_id = encrypt(encrypted.paypal_client_id);
+  else if (encrypted.paypal_client_id === '') encrypted.paypal_client_id = '';
   if (encrypted.paypal_client_secret) encrypted.paypal_client_secret = encrypt(encrypted.paypal_client_secret);
+  else if (encrypted.paypal_client_secret === '') encrypted.paypal_client_secret = '';
 
   for (const [key, val] of Object.entries(encrypted)) {
     if (['stripe_key', 'stripe_account_id', 'paypal_client_id', 'paypal_client_secret', 'paypal_environment', 'display_name'].includes(key)) {

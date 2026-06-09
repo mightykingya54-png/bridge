@@ -13,11 +13,12 @@
     ],
     "content_security_policy": {
       "connect-src": [
-"https://bridge-production-ad61.up.railway.app/api/",
-
-        "https://bridge-production-ad61.up.railway.app/app"
-  ],
-  "distribution_type": "private",
-  "stripe_api_access_type": "platform",
-  "sandbox_install_compatible": true
+        "https://bridge.onrender.com/api/",
+        "https://bridge.onrender.com/app"
+      ]
+    },
+    "distribution_type": "private",
+    "stripe_api_access_type": "platform",
+    "sandbox_install_compatible": true
+  }
 }

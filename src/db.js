@@ -17,6 +17,7 @@ const RAW_DATABASE_URL = process.env.DATABASE_URL || '';
  * Fix a Render short hostname by appending the known region suffix.
  * Internal Render hostnames look like "dpg-xxxxx" and need the
  * full ".oregon-postgres.render.com" suffix to resolve in DNS.
+ * Does NOT modify localhost — it's already reachable locally.
  */
 function fixRenderHostname(url) {
   try {
@@ -25,6 +26,8 @@ function fixRenderHostname(url) {
 
     // If hostname already has a dot, assume it's fully qualified
     if (host.includes('.')) return url;
+    // localhost is a special case — always reachable without suffix
+    if (host === 'localhost') return url;
 
     // Short hostname (like "dpg-xxxxx") — append Render region suffix
     // Bridge DB is in Oregon (US West)
@@ -48,12 +51,13 @@ export function getPool() {
       console.warn('   Set DATABASE_URL in your hosting provider\'s environment variables.');
       return null;
     }
+    const isLocal = RAW_DATABASE_URL.includes('localhost') || RAW_DATABASE_URL.includes('127.0.0.1');
     pool = new Pool({
       connectionString: DATABASE_URL,
       max: 5,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
-      ssl: { rejectUnauthorized: false },
+      ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
     });
     console.log('✅ PostgreSQL pool created');
   }

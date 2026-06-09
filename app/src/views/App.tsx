@@ -6,7 +6,8 @@ import {
   Link,
 } from '@stripe/ui-extension-sdk/ui';
 
-const BRIDGE_URL = 'https://bridge-production-ad61.up.railway.app/app';
+// Bridge backend URL — update this to your production URL before deploying.
+const BRIDGE_URL = 'https://bridge.onrender.com/app';
 
 /**
  * Bridge Stripe App — Launcher.

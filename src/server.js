@@ -7,21 +7,36 @@
  * Run: npm start   (node src/server.js)
  */
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import { config } from './config.js';
+import Stripe from 'stripe';
 import { pushPaymentRecord, pushRefundRecord, testConnection as testStripe } from './connectors/stripe.js';
 import { fetchTransactions, testConnection as testPaypal } from './connectors/paypal.js';
 import { runSync, processRefund } from './sync/engine.js';
 import { startScheduler, runMerchantSync } from './sync/scheduler.js';
 import { setupWebUI } from './web-ui.js';
+
+// Initialize Sentry error tracking
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'production',
+    tracesSampleRate: 0.1,
+  });
+  console.log('✅ Sentry error tracking initialized');
+} else {
+  console.warn('⚠️  SENTRY_DSN not set — error tracking disabled');
+}
 import {
   createMerchant,
   getMerchant,
   getMerchantByApiKey,
   getMerchantBySubscriptionId,
-  getMerchantByStripeAccountId,
   getMerchantByPaddleSubscriptionId,
+  getMerchantByStripeAccountId,
   updateMerchantCredentials,
   getAllMerchants,
   getAllMerchantsSummary,
@@ -50,6 +65,11 @@ app.set('trust proxy', 1);  // Render sits behind a proxy — trust X-Forwarded-
 app.use(compression({ threshold: 0 }));  // gzip all responses (threshold 0 = compress everything)
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
+
+// Serve static files from /public directory (og-image.png, etc.)
+app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: '1h' }));
+
+// Sentry request handler — auto-integrated via expressIntegration in v10
 
 /**
  * Map an error to a user-friendly message.
@@ -298,10 +318,11 @@ app.post('/api/configure', async (req, res) => {
   const { stripeKey, paypalClientId, paypalClientSecret, paypalEnvironment } = req.body || {};
 
   const updates = {};
-  if (stripeKey) updates.stripe_key = stripeKey;
-  if (paypalClientId) updates.paypal_client_id = paypalClientId;
-  if (paypalClientSecret) updates.paypal_client_secret = paypalClientSecret;
-  if (paypalEnvironment) updates.paypal_environment = paypalEnvironment;
+  // Use hasOwnProperty-style check so empty strings explicitly clear credentials
+  if (stripeKey !== undefined) updates.stripe_key = stripeKey;
+  if (paypalClientId !== undefined) updates.paypal_client_id = paypalClientId;
+  if (paypalClientSecret !== undefined) updates.paypal_client_secret = paypalClientSecret;
+  if (paypalEnvironment !== undefined) updates.paypal_environment = paypalEnvironment;
 
   // If Stripe or PayPal creds were provided, test them before saving
   if (stripeKey) {
@@ -576,6 +597,32 @@ async function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
+// ── Static assets ───────────────────────────────────────────────
+
+/**
+ * GET /og-image.png
+ * Minimal Open Graph image for social sharing.
+ * Returns an SVG-based image (most crawlers accept it).
+ * Replace with a real 1200x630 PNG for production.
+ */
+app.get('/og-image.png', (req, res) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#4f46e5"/>
+        <stop offset="100%" style="stop-color:#7c3aed"/>
+      </linearGradient>
+    </defs>
+    <rect width="1200" height="630" fill="url(#bg)"/>
+    <text x="80" y="280" font-family="Inter, -apple-system, sans-serif" font-size="64" font-weight="800" fill="#ffffff">Bridge</text>
+    <text x="80" y="360" font-family="Inter, -apple-system, sans-serif" font-size="36" font-weight="500" fill="rgba(255,255,255,0.85)">Sync PayPal to Stripe Revenue Recognition</text>
+    <text x="80" y="430" font-family="Inter, -apple-system, sans-serif" font-size="24" font-weight="400" fill="rgba(255,255,255,0.6)">PayPal income doesn't show in Stripe. Bridge makes it show up.</text>
+  </svg>`;
+  res.set('Content-Type', 'image/svg+xml');
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(svg);
+});
+
 // ── Billing / Subscription routes ───────────────────────────────
 
 /**
@@ -701,12 +748,138 @@ app.get('/api/stripe/oauth/callback', async (req, res) => {
   }
 });
 
-// ── Paddle Billing ─────────────────────────────────────────────
+// ── Stripe Billing ─────────────────────────────────────────────
 
 /**
+ * POST /api/create-checkout-session
+ * Creates a Stripe Checkout Session for monthly subscription.
+ * Redirects user to Stripe Checkout for payment.
+ */
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    if (!req.merchant) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+
+    const merchant = req.merchant;
+    const sub = await getSubscription(merchant.id);
+
+    // If already subscribed with a valid Stripe subscription, create portal session
+    if (sub.active && sub.stripeSubscriptionId) {
+      try {
+        const stripe = new Stripe(config.stripe.secretKey);
+        const portalSession = await stripe.billingPortal.sessions.create({
+          customer: sub.stripeCustomerId,
+          return_url: `${BASE_URL}/app`,
+        });
+        return res.json({ url: portalSession.url });
+      } catch (portalErr) {
+        console.warn(`⚠️  Could not create Stripe portal for ${merchant.id}: ${portalErr.message}`);
+      }
+      return res.json({ active: true });
+    }
+
+    // Create a Stripe Checkout Session for subscription
+    const stripe = new Stripe(config.stripe.secretKey);
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: config.stripe.priceId, quantity: 1 }],
+      client_reference_id: merchant.id,
+      metadata: { merchant_id: merchant.id },
+      success_url: `${BASE_URL}/app?checkout=success`,
+      cancel_url: `${BASE_URL}/app`,
+    });
+
+    console.log(`✅ Merchant ${merchant.id}: Checkout session created (${session.id})`);
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('❌ Checkout session error:', err.message);
+    res.status(500).json({ error: `Checkout error: ${err.message}` });
+  }
+});
+
+/**
+ * POST /api/stripe-webhook
+ * Receives Stripe webhook events for subscription lifecycle.
+ * Updates the merchant's subscription status in the database.
+ */
+app.post('/api/stripe-webhook', async (req, res) => {
+  try {
+    const stripe = new Stripe(config.stripe.secretKey);
+    let event;
+
+    // Verify webhook signature if secret is configured
+    if (config.stripe.webhookSecret && req.headers['stripe-signature']) {
+      const rawBody = req.rawBody || JSON.stringify(req.body);
+      event = stripe.webhooks.constructEvent(rawBody, req.headers['stripe-signature'], config.stripe.webhookSecret);
+    } else {
+      event = req.body;
+    }
+
+    if (!event || !event.type) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+
+    const data = event.data?.object || {};
+    console.log(`📬 Stripe webhook: ${event.type} (${data.id})`);
+
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const merchantId = data.metadata?.merchant_id || data.client_reference_id;
+        if (merchantId && data.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(data.subscription);
+          const merchant = await getMerchant(merchantId);
+          if (merchant) {
+            await updateSubscription(merchant.id, {
+              stripeCustomerId: data.customer,
+              stripeSubscriptionId: data.subscription,
+              status: subscription.status,
+              tier: 'monthly',
+            });
+            console.log(`✅ Merchant ${merchant.id}: Stripe subscribed (sub ${data.subscription})`);
+          } else {
+            console.warn(`⚠️  checkout.session.completed: merchant not found: ${merchantId}`);
+          }
+        }
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const merchant = await getMerchantBySubscriptionId(data.id);
+        if (merchant) {
+          const status = data.status === 'active' ? 'active' :
+                         data.status === 'past_due' ? 'past_due' :
+                         data.status === 'canceled' ? 'canceled' :
+                         data.status === 'trialing' ? 'trialing' : data.status;
+          await updateSubscription(merchant.id, { status });
+          console.log(`ℹ️  Merchant ${merchant.id}: Stripe subscription ${status}`);
+        }
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const cancelledMerchant = await getMerchantBySubscriptionId(data.id);
+        if (cancelledMerchant) {
+          await updateSubscription(cancelledMerchant.id, { status: 'canceled' });
+          console.log(`ℹ️  Merchant ${cancelledMerchant.id}: Stripe subscription cancelled`);
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('❌ Stripe webhook error:', err.message);
+    res.status(400).json({ error: `Stripe webhook error: ${err.message}` });
+  }
+});
+
+// ── Paddle Billing ─────────────────────────────────────────────
+/**
  * POST /api/create-paddle-checkout
- * Creates a Paddle transaction for a monthly subscription.
- * Returns the checkout URL to redirect the user to.
+ * Creates or returns a Paddle checkout session for subscription.
+ * Returns the price ID for overlay-based checkout.
  */
 app.post('/api/create-paddle-checkout', async (req, res) => {
   try {
@@ -725,23 +898,22 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
         const portalSession = await paddle.customerPortalSessions.create({
           subscriptionIds: [sub.paddleSubscriptionId],
         });
-        const portalUrl = portalSession.urls?.general?.url || null;
-        if (portalUrl) {
-          return res.json({ url: portalUrl });
-        }
+        return res.json({ url: portalSession.url });
       } catch (portalErr) {
         console.warn(`⚠️  Could not create Paddle portal for ${merchant.id}: ${portalErr.message}`);
       }
-      // Fallback: just confirm they're already subscribed
-      return res.json({ message: 'Already subscribed', active: true });
+      return res.json({ active: true });
     }
 
     // Return the price ID — frontend uses Paddle.Checkout.open() with items directly.
     // Paddle.js handles customer creation, payment, and subscription setup.
-    // The webhook will receive subscription.created with customData.merchant_id.
+    if (!config.paddle.priceId || !config.paddle.clientToken) {
+      return res.status(500).json({ error: 'Paddle billing is not configured. Contact support.' });
+    }
     console.log(`✅ Merchant ${merchant.id}: Paddle checkout items ready (price: ${config.paddle.priceId})`);
     res.json({ priceId: config.paddle.priceId });
   } catch (err) {
+    console.error('❌ Paddle checkout error:', err.message);
     res.status(500).json({ error: `Checkout error: ${err.message}` });
   }
 });
@@ -749,18 +921,17 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
 /**
  * POST /api/paddle-webhook
  * Receives Paddle webhook events for subscription lifecycle.
- * Updates the merchant's subscription status in the database.
  */
 app.post('/api/paddle-webhook', async (req, res) => {
   try {
     const { Paddle } = await import('@paddle/paddle-node-sdk');
     const paddle = new Paddle(config.paddle.apiKey);
+    let event = req.body;
 
     // Verify webhook signature if secret is configured
     if (config.paddle.webhookSecret && req.headers['paddle-signature']) {
-      const rawBody = req.rawBody || JSON.stringify(req.body);
       const isValid = await paddle.webhooks.isSignatureValid(
-        rawBody,
+        req.bodyRaw || JSON.stringify(req.body),
         config.paddle.webhookSecret,
         req.headers['paddle-signature']
       );
@@ -768,9 +939,9 @@ app.post('/api/paddle-webhook', async (req, res) => {
         console.warn('⚠️  Invalid Paddle webhook signature');
         return res.status(401).json({ error: 'Invalid signature' });
       }
+      event = req.body;
     }
 
-    const event = req.body;
     if (!event || !event.event_type) {
       return res.status(400).json({ error: 'Invalid webhook payload' });
     }
@@ -779,47 +950,40 @@ app.post('/api/paddle-webhook', async (req, res) => {
     console.log(`📬 Paddle webhook: ${event.event_type} (${data.id})`);
 
     switch (event.event_type) {
-      case 'subscription.created': {
-        // Find merchant by custom_data.merchant_id (set during checkout).
-        // merchant_id contains the merchant's API key, or their DB ID.
-        const merchantIdOrKey = data.custom_data?.merchant_id;
-        if (merchantIdOrKey) {
-          let merchant = null;
+      case 'subscription.created':
+      case 'subscription.updated': {
+        // Determine merchant from custom data or transaction
+        let merchantId = data.custom_data?.merchant_id;
+        if (!merchantId && data.items?.[0]?.price?.id) {
           // Try to find by API key first (Paddle.js overlay passes API_KEY as merchant_id)
-          if (merchantIdOrKey.startsWith('brg_')) {
-            merchant = await getMerchantByApiKey(merchantIdOrKey);
-          } else {
-            merchant = await getMerchant(merchantIdOrKey);
+          if (data.custom_data?.api_key) {
+            const keyMerchant = await getMerchantByApiKey(data.custom_data.api_key);
+            if (keyMerchant) merchantId = keyMerchant.id;
           }
+        }
+        if (merchantId) {
+          const merchant = await getMerchant(merchantId);
           if (merchant) {
+            const status = data.status === 'active' ? 'active' :
+                           data.status === 'past_due' ? 'past_due' :
+                           data.status === 'canceled' ? 'canceled' :
+                           data.status === 'trialing' ? 'trialing' : data.status;
             await updateSubscription(merchant.id, {
               paddleCustomerId: data.customer_id || null,
               paddleSubscriptionId: data.id,
-              status: data.status || 'active',
+              status,
               tier: 'monthly',
             });
             console.log(`✅ Merchant ${merchant.id}: Paddle subscribed (sub ${data.id})`);
           } else {
-            console.warn(`⚠️  subscription.created: could not find merchant for key/id: ${merchantIdOrKey}`);
+            console.warn(`⚠️  subscription.created/updated: merchant not found: ${merchantId}`);
           }
-        } else {
-          console.warn('⚠️  subscription.created has no merchant_id in custom_data');
         }
         break;
       }
 
-      case 'subscription.updated': {
+      case 'subscription.canceled': {
         // Find merchant by paddle_subscription_id
-        const merchant = await getMerchantByPaddleSubscriptionId(data.id);
-        if (merchant) {
-          const status = data.status || 'active';
-          await updateSubscription(merchant.id, { status });
-          console.log(`ℹ️  Merchant ${merchant.id}: Paddle subscription ${status}`);
-        }
-        break;
-      }
-
-      case 'subscription.cancelled': {
         const cancelledMerchant = await getMerchantByPaddleSubscriptionId(data.id);
         if (cancelledMerchant) {
           await updateSubscription(cancelledMerchant.id, { status: 'canceled' });
@@ -829,10 +993,9 @@ app.post('/api/paddle-webhook', async (req, res) => {
       }
 
       case 'transaction.completed': {
-        // Optionally track first payment or trial start
-        const txnMerchantId = data.custom_data?.merchant_id;
-        if (txnMerchantId && !data.billing_period) {
-          // This is the initial transaction (not a renewal)
+        // Handle one-time payments or initial subscription payments
+        const txnMerchantId = data.custom_data?.merchant_id || data.custom_data?.api_key;
+        if (txnMerchantId) {
           console.log(`ℹ️  Merchant ${txnMerchantId}: initial Paddle transaction completed`);
         }
         break;
@@ -865,7 +1028,6 @@ app.get('/api/admin/merchants', async (req, res) => {
         displayName: m.display_name,
         email: m.email || null,
         stripeAccountId: m.stripe_account_id || null,
-        paddleSubscriptionId: m.paddle_subscription_id || null,
         subscriptionStatus: m.subscription_status,
         subscriptionTier: m.subscription_tier,
         trialEnd: m.trial_end_at,
@@ -907,7 +1069,6 @@ app.get('/api/admin/stats', async (req, res) => {
       m.subscription_status === 'trial' && !m.trial_end_at && !m.stripe_account_id
     ).length;
     const withStripe = merchants.filter(m => m.stripe_account_id).length;
-    const withPaddle = merchants.filter(m => m.paddle_subscription_id).length;
     res.json({
       total,
       onTrial,
@@ -915,8 +1076,7 @@ app.get('/api/admin/stats', async (req, res) => {
       expired,
       canceled,
       unconfigured,       // registered but never set up Stripe keys
-      withStripe,          // configured Stripe at least once
-      withPaddle           // has a Paddle subscription
+      withStripe           // configured Stripe at least once
     });
   } catch (err) {
     console.error('❌ Admin stats error:', err.message);
@@ -929,6 +1089,11 @@ app.get('/api/admin/stats', async (req, res) => {
 // Fallback to localhost for local dev only.
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 setupWebUI(app, BASE_URL, config.paddle.clientToken);
+
+// Sentry error handler (must be after all routes)
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ── Start server ────────────────────────────────────────────────
 const PORT = 8080;

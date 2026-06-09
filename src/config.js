@@ -17,6 +17,7 @@ if (existsSync(envPath)) {
 export const config = {
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || '', // optional now
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     priceId: process.env.STRIPE_PRICE_ID || 'price_1TerCLCYeLNgFTf8sASPUBGN',
     clientId: process.env.STRIPE_CLIENT_ID || 'ca_UeE3JQaWHr8NVoAicSPISj1C8dToZuV2',
@@ -40,4 +41,6 @@ export const config = {
    * If set in env, it's used directly. Otherwise, a key is generated
    * on first startup and stored in the database (persists across deploys). */
   encryptionKey: process.env.ENCRYPTION_KEY || '',
+  /** Sentry DSN for error tracking */
+  sentryDsn: process.env.SENTRY_DSN || '',
 };
