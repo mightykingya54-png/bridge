@@ -922,27 +922,10 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.json({ active: true });
     }
 
-    // NEW subscriber: prefer Paddle Checkout if configured
+    // NEW subscriber: prefer Paddle Checkout overlay if configured
     if (config.paddle.apiKey && config.paddle.priceId) {
-      try {
-        const payLinkRes = await fetch('https://vendors.paddle.com/api/2.0/product/generate_pay_link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            vendor_id: config.paddle.vendorId || '352887',
-            vendor_auth_code: config.paddle.apiKey,
-            product_id: config.paddle.priceId,
-          }),
-        });
-        const payLinkData = await payLinkRes.json();
-        if (payLinkData.success && payLinkData.response?.url) {
-          console.log(`✅ Merchant ${merchant.id}: Paddle Checkout URL generated`);
-          return res.json({ url: payLinkData.response.url });
-        }
-        console.warn('⚠️  Paddle pay link generation failed, falling back to Stripe');
-      } catch (paddleErr) {
-        console.warn(`⚠️  Paddle checkout failed, falling back to Stripe: ${paddleErr.message}`);
-      }
+      console.log(`✅ Merchant ${merchant.id}: Paddle Checkout overlay`);
+      return res.json({ overlay: true });
     }
 
     // Fallback: Stripe Checkout

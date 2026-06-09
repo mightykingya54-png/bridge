@@ -1128,8 +1128,18 @@ export function setupWebUI(app, _BASE_URL) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
       if (d.url) {
-        // Redirect to checkout
         window.location.href = d.url;
+      } else if (d.overlay && typeof Paddle !== 'undefined') {
+        setLoading('btn-subscribe', false);
+        Paddle.Checkout.open({
+          plan: 925953,
+          successCallback: function() {
+            fetch(API + '/api/activate-subscription', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } })
+              .then(() => { loadDashboard(); })
+              .catch(() => {});
+          },
+          closeCallback: function() { loadDashboard(); },
+        });
       } else if (d.active) {
         document.getElementById('error-billing').textContent = 'Already subscribed.';
         loadDashboard();
