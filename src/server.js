@@ -890,8 +890,8 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
     const merchant = req.merchant;
     const sub = await getSubscription(merchant.id);
 
-    // If already subscribed with a valid Paddle subscription, create a customer portal session
-    if (sub.active && sub.paddleSubscriptionId) {
+    // If already has a PAID subscription — redirect to billing portal
+    if (sub.paddleSubscriptionId && config.paddle.apiKey) {
       try {
         const { Paddle } = await import('@paddle/paddle-node-sdk');
         const paddle = new Paddle(config.paddle.apiKey);
@@ -904,14 +904,43 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       }
       return res.json({ active: true });
     }
-
-    // Return the price ID — frontend uses Paddle.Checkout.open() with items directly.
-    // Paddle.js handles customer creation, payment, and subscription setup.
-    if (!config.paddle.priceId || !config.paddle.clientToken) {
-      return res.status(500).json({ error: 'Paddle billing is not configured. Contact support.' });
+    if (sub.stripeSubscriptionId && sub.stripeCustomerId && config.stripe.secretKey) {
+      try {
+        const stripe = new Stripe(config.stripe.secretKey);
+        const portalSession = await stripe.billingPortal.sessions.create({
+          customer: sub.stripeCustomerId,
+          return_url: `${BASE_URL}/app`,
+        });
+        return res.json({ url: portalSession.url });
+      } catch (portalErr) {
+        console.warn(`⚠️  Could not create Stripe portal for ${merchant.id}: ${portalErr.message}`);
+      }
+      return res.json({ active: true });
     }
-    console.log(`✅ Merchant ${merchant.id}: Paddle checkout items ready (price: ${config.paddle.priceId})`);
-    res.json({ priceId: config.paddle.priceId });
+
+    // If Paddle is configured, use Paddle overlay checkout
+    if (config.paddle.priceId && config.paddle.clientToken) {
+      console.log(`✅ Merchant ${merchant.id}: Paddle checkout items ready (price: ${config.paddle.priceId})`);
+      return res.json({ priceId: config.paddle.priceId });
+    }
+
+    // Fallback: create a Stripe Checkout session
+    console.log(`ℹ️  Paddle not configured — falling back to Stripe Checkout for ${merchant.id}`);
+    const stripe = new Stripe(config.stripe.secretKey);
+    if (!config.stripe.priceId) {
+      return res.status(500).json({ error: 'No billing method configured. Set up Paddle or Stripe billing.' });
+    }
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: config.stripe.priceId, quantity: 1 }],
+      client_reference_id: merchant.id,
+      metadata: { merchant_id: merchant.id },
+      success_url: `${BASE_URL}/app?checkout=success`,
+      cancel_url: `${BASE_URL}/app`,
+    });
+    console.log(`✅ Merchant ${merchant.id}: Stripe Checkout session created (${session.id})`);
+    res.json({ url: session.url });
   } catch (err) {
     console.error('❌ Paddle checkout error:', err.message);
     res.status(500).json({ error: `Checkout error: ${err.message}` });
