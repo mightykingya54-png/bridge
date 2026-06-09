@@ -922,13 +922,7 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.json({ active: true });
     }
 
-    // NEW subscriber: prefer Paddle Checkout overlay if configured
-    if (config.paddle.apiKey && config.paddle.priceId) {
-      console.log(`✅ Merchant ${merchant.id}: Paddle Checkout overlay`);
-      return res.json({ overlay: true });
-    }
-
-    // Fallback: Stripe Checkout
+    // NEW subscriber: Stripe Checkout
     const stripe = new Stripe(config.stripe.secretKey);
     if (!config.stripe.priceId) {
       return res.status(500).json({ error: 'Billing not configured. Contact support.' });
