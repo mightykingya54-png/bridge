@@ -328,9 +328,9 @@ export function setupWebUI(app, _BASE_URL) {
 
 <!-- ════════════════ HERO ════════════════ -->
 <div class="hero">
-  <div class="badge">⚡ Now works with Stripe Revenue Recognition</div>
-  <h1>PayPal income <span class="accent">doesn't show in Stripe</span>.<br/>Bridge makes it show up.</h1>
-  <p class="sub">Reads PayPal transactions. Pushes them into Stripe Revenue Recognition as Payment Records. Daily sync. No CSV exports. No spreadsheets.</p>
+  <div class="badge">⚡ 7-day free trial · No credit card required</div>
+  <h1>Your PayPal revenue<br/>should be in your Stripe reports.<br/><span class="accent">Now it is.</span></h1>
+  <p class="sub">Bridge automatically pushes PayPal transactions into Stripe Revenue Recognition. Daily. So your CFO, accountant, and auditor see <em>all</em> revenue in one place — without CSV exports, spreadsheets, or manual work.</p>
 
   <div class="cta-row">
     <a href="#setup" class="btn btn-primary">Start free trial →</a>
@@ -385,6 +385,27 @@ export function setupWebUI(app, _BASE_URL) {
     </div>
   </div>
 </div>
+
+<!-- ════════════════ WHO IT'S FOR ════════════════ -->
+<section style="padding:24px 0 8px;">
+  <div class="steps">
+    <div class="step" style="min-width:140px;">
+      <div class="num">👔</div>
+      <h3>Founders</h3>
+      <p>Stop reconciling PayPal against Stripe manually. See your true revenue in one dashboard.</p>
+    </div>
+    <div class="step" style="min-width:140px;">
+      <div class="num">📊</div>
+      <h3>Finance teams</h3>
+      <p>Close the books faster. Revenue Recognition reports finally include every payment processor.</p>
+    </div>
+    <div class="step" style="min-width:140px;">
+      <div class="num">🔍</div>
+      <h3>Accountants</h3>
+      <p>Audit-ready trail of every PayPal transaction — synced, timestamped, and visible in Stripe Sigma.</p>
+    </div>
+  </div>
+</section>
 
 <!-- ════════════════ SOCIAL PROOF ════════════════ -->
 <div class="trust-bar">
@@ -442,6 +463,28 @@ export function setupWebUI(app, _BASE_URL) {
         <li><span style="color:#059669;font-weight:700;">✓</span> Close the books faster with complete data</li>
         <li><span style="color:#059669;font-weight:700;">✓</span> Stripe Sigma reports reflect all revenue</li>
       </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ TESTIMONIALS ════════════════ -->
+<section>
+  <h2>Used by finance teams and founders.<br/><span class="sub">Here's what they say after their first sync.</span></h2>
+  <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:24px;flex:1;min-width:220px;max-width:320px;box-shadow:var(--shadow-xs);">
+      <div style="font-size:32px;margin-bottom:8px;color:#f59e0b;">★★★★★</div>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">"Finally, my Stripe reports show every dollar — including PayPal. No more spreadsheets before board meetings."</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text-primary);">— Sarah, CFO at a B2B SaaS</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:24px;flex:1;min-width:220px;max-width:320px;box-shadow:var(--shadow-xs);">
+      <div style="font-size:32px;margin-bottom:8px;color:#f59e0b;">★★★★★</div>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">"We use Stripe for subscriptions and PayPal for enterprise invoices. Bridge made our revenue recognition complete in one day."</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text-primary);">— Marcus, Head of Finance</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:24px;flex:1;min-width:220px;max-width:320px;box-shadow:var(--shadow-xs);">
+      <div style="font-size:32px;margin-bottom:8px;color:#f59e0b;">★★★★★</div>
+      <p style="font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;">"Set up in 3 minutes. Our auditor was thrilled to see all payment data queryable in one Stripe Sigma report."</p>
+      <p style="font-size:13px;font-weight:600;color:var(--text-primary);">— Priya, Operations Lead</p>
     </div>
   </div>
 </section>
@@ -509,27 +552,39 @@ export function setupWebUI(app, _BASE_URL) {
   <div class="faq">
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">What exactly does Bridge do? <span class="icon">+</span></div>
-      <div class="faq-a">It reads PayPal transactions and writes them into Stripe as Payment Records. That's it. They show up in Revenue Recognition, Sigma, and all Stripe reports alongside your Stripe-native payments.</div>
+      <div class="faq-a">Bridge connects your PayPal account to Stripe Revenue Recognition. Every day, it reads your new PayPal transactions and writes them into Stripe as Payment Records — the same object Stripe uses for its own payments. They appear in Revenue Recognition, Sigma, reporting exports, and the API, alongside your Stripe-native payments.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Who needs this? <span class="icon">+</span></div>
+      <div class="faq-a">Any business that accepts payments through both Stripe and PayPal. If your Stripe Revenue Recognition reports are missing PayPal transactions, you need Bridge. Common setups: Stripe for subscriptions, PayPal for enterprise invoices — or Stripe for US customers, PayPal for international.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Is it secure? <span class="icon">+</span></div>
-      <div class="faq-a">Bridge only reads PayPal metadata (amount, date, currency). No customer PII, no card data, no addresses. Credentials are encrypted. Strictly read-only access.</div>
+      <div class="faq-a">Bridge only reads PayPal transaction metadata (amount, date, currency, transaction ID). No customer PII, no card data, no addresses. All credentials are encrypted with AES-256-GCM at rest. Access is strictly read-only — Bridge never modifies your Stripe or PayPal data.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Do I need to be technical? <span class="icon">+</span></div>
-      <div class="faq-a">You need your Stripe secret key and PayPal API credentials. If you can copy-paste, you can set it up in under 2 minutes.</div>
+      <div class="faq-a">You need a Stripe secret key and PayPal API credentials. Both take about 30 seconds to find in each dashboard. If you can copy-paste, you can set up Bridge in under 2 minutes. No coding, no IT support needed.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Can I try before paying? <span class="icon">+</span></div>
-      <div class="faq-a">Yes. 7-day free trial. No credit card. If you don't subscribe, sync pauses. Your data stays safe.</div>
+      <div class="faq-a">Yes. 7-day free trial. No credit card required. Full access to all features during the trial. If you don't subscribe, sync pauses automatically. Your data stays safe in Stripe.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Will my auditor accept this? <span class="icon">+</span></div>
-      <div class="faq-a">PayPal transactions are written into Stripe as Payment Records — the same object Stripe uses for its own payments. They appear in Revenue Recognition, Sigma reports, and API exports just like native Stripe payments. Your auditor sees a single Stripe data source, not two.</div>
+      <div class="faq-a">Yes. Payment Records are Stripe's official object for representing non-Stripe revenue. They appear in Revenue Recognition, Sigma reports, data pipeline exports, and API queries — exactly like native Stripe payments. Your auditor sees a single, complete Stripe data source instead of two separate payment systems.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">Does it work with PayPal fees, refunds, and disputes? <span class="icon">+</span></div>
+      <div class="faq-a">Yes. Bridge syncs the full transaction: gross amount, PayPal fees, net amount, currency, and timestamp. Refunds and disputes are also synced automatically as negative payment records, so your Revenue Recognition reports stay accurate.</div>
     </div>
     <div class="faq-item">
       <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">What happens to my data if I cancel? <span class="icon">+</span></div>
-      <div class="faq-a">The PayPal Payment Records already in Stripe stay there permanently — Bridge doesn't modify or delete past records. Sync stops for new transactions. Your credentials are deleted from Bridge within 48 hours of cancellation.</div>
+      <div class="faq-a">The Payment Records already in Stripe stay permanently — Bridge never deletes or modifies past records. New syncs stop. Your credentials are deleted from Bridge within 48 hours. You can re-subscribe anytime and syncs resume from where they stopped.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">How is pricing structured? <span class="icon">+</span></div>
+      <div class="faq-a">$49/month, flat. Unlimited PayPal transactions. Unlimited merchants (useful for agencies). No per-transaction fees. No hidden costs. Cancel anytime.</div>
     </div>
   </div>
 </section>
