@@ -62,7 +62,9 @@ export function setupWebUI(app, _BASE_URL) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" as="style">
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap" rel="stylesheet">
-  <!-- Checkout uses server-redirect (Stripe Checkout / Razorpay) -->
+  <!-- Paddle Billing checkout overlay -->
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <script>Paddle.Initialize({ token: 'live_23d04184a86441bb236d839faed' });</script>
   <style>
     :root {
       --bg: #fafbfc;
@@ -1125,7 +1127,22 @@ export function setupWebUI(app, _BASE_URL) {
       const r = await fetch(API + '/api/create-paddle-checkout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      if (d.url) {
+      if (d.overlay && typeof Paddle !== 'undefined') {
+        setLoading('btn-subscribe', false);
+        Paddle.Checkout.open({
+          items: [{ priceId: 'pri_01ktcfrr6vfj5kn20393x41enk', quantity: 1 }],
+          customData: { merchant_id: API_KEY },
+          settings: {
+            displayMode: 'overlay',
+            successCallback: function() {
+              fetch(API + '/api/activate-subscription', { method: 'POST', headers: { 'Authorization': 'Bearer ' + API_KEY } })
+                .then(function(r) { return r.json(); })
+                .then(function() { loadDashboard(); })
+                .catch(function() { loadDashboard(); });
+            },
+          },
+        });
+      } else if (d.url) {
         window.location.href = d.url;
       } else if (d.active) {
         document.getElementById('error-billing').textContent = 'Already subscribed.';

@@ -28,7 +28,6 @@ export const config = {
     environment: process.env.PAYPAL_ENVIRONMENT || 'sandbox',
   },
   paddle: {
-    vendorId: process.env.PADDLE_VENDOR_ID || '',
     apiKey: process.env.PADDLE_API_KEY || '',
     priceId: process.env.PADDLE_PRICE_ID || '',
     webhookSecret: process.env.PADDLE_WEBHOOK_SECRET || '',
