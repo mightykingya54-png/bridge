@@ -1122,7 +1122,7 @@ if (process.env.SENTRY_DSN) {
 }
 
 // ── Start server ────────────────────────────────────────────────
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
 async function start() {
   if (!config.databaseUrl) {

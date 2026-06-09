@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: bridge
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /app
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: BASE_URL
+        value: https://bridge.onrender.com
+      - key: STRIPE_PRICE_ID
+        value: price_1TgQjYCYeLNgFTf85f95Mmsq
