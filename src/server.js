@@ -922,7 +922,7 @@ app.post('/api/create-paddle-checkout', async (req, res) => {
       return res.json({ active: true });
     }
 
-    // NEW subscriber: Paddle Billing overlay
+    // NEW subscriber: Paddle Billing checkout overlay
     if (config.paddle.apiKey && config.paddle.priceId && config.paddle.clientToken) {
       console.log(`✅ Merchant ${merchant.id}: Paddle Billing checkout overlay`);
       return res.json({ overlay: true });
@@ -1142,6 +1142,17 @@ app.get('/api/admin/stats', async (req, res) => {
     console.error('❌ Admin stats error:', err.message);
     res.status(500).json({ error: friendlyError(err, 'admin') });
   }
+});
+
+// ── Stripe Auditor Routes ──────────────────────────────────────
+import { setupAuditRoutes } from './audit/routes.js';
+setupAuditRoutes(app, {
+  createOAuthState,
+  consumeOAuthState,
+  updateMerchantStripeOAuth,
+  getMerchantByApiKey,
+  getMerchant,
+  createMerchant,
 });
 
 // ── Serve Web UI (standalone setup page) ─────────────────────────
