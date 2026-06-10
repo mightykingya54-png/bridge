@@ -58,46 +58,7 @@ export async function checkUncollectedInvoices(stripe) {
       }
     }
 
-    // Also check past_due invoices
-    hasMore = true;
-    startingAfter = null;
 
-    while (hasMore) {
-      const params = {
-        limit: 100,
-        status: 'past_due',
-      };
-      if (startingAfter) params.starting_after = startingAfter;
-
-      const invoices = await stripe.invoices.list(params);
-      
-      for (const inv of invoices.data) {
-        const amount = inv.total || inv.amount_due || 0;
-        const daysOld = Math.floor((Date.now() / 1000 - inv.created) / 86400);
-        
-        totalCount++;
-        totalAmount += amount;
-        overdueCount++;
-        overdueAmount += amount;
-
-        details.push({
-          invoiceId: inv.id,
-          customerId: inv.customer,
-          amount,
-          amountFormatted: '$' + (amount / 100).toFixed(2),
-          currency: inv.currency,
-          created: new Date(inv.created * 1000).toISOString().split('T')[0],
-          daysOpen: daysOld,
-          status: 'past_due',
-          subscriptionId: inv.subscription || null,
-        });
-      }
-
-      hasMore = invoices.has_more;
-      if (hasMore) {
-        startingAfter = invoices.data[invoices.data.length - 1].id;
-      }
-    }
 
   } catch (err) {
     return {
