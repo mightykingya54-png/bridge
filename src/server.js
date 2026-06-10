@@ -137,6 +137,8 @@ async function authRequired(req, res, next) {
     if (req.path === '/api/stripe-webhook') return next();
     if (req.path === '/api/paddle-webhook') return next();
     if (req.path === '/api/stripe/oauth/callback') return next();
+    if (req.path.startsWith('/audit/')) return next();
+    if (req.path === '/api/audit/run' && req.method === 'POST') return next();
 
     // Parse API key from Authorization header or ?key= query param
     const authHeader = req.headers.authorization || '';
