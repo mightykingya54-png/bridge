@@ -157,7 +157,7 @@ export function generateReportHtml(auditResult, merchantInfo = {}) {
     <div class="cta">
       <h3>This was your free scan</h3>
       <p>Subscribe to weekly monitoring to track changes, get alerts, and measure recovery progress.</p>
-      <a href="/audit/subscribe" class="btn">Subscribe — $99/mo</a>
+      <a href="mailto:yashanare193@gmail.com?subject=Stripe%20Auditor%20Subscription" class="btn">Subscribe — $99/mo</a>
     </div>
 
     <div class="footer">
