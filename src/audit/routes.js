@@ -9,6 +9,7 @@
 import Stripe from 'stripe';
 import { runAudit, getHealthScore } from './index.js';
 import { generateReportHtml } from './report.js';
+import { config } from '../config.js';
 
 export function setupAuditRoutes(app, deps) {
 
@@ -161,13 +162,111 @@ export function setupAuditRoutes(app, deps) {
     }
   });
 
+  // ── Pricing / Subscribe ──────────────────────────────────────
+  // GET /audit/subscribe — Shows pricing and checkout button
+  app.get('/audit/subscribe', async (req, res) => {
+    const error = req.query.error ? `<div style="background:#fef2f2;color:#ef4444;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px">${req.query.error}</div>` : '';
+    const success = req.query.success ? `<div style="background:#f0fdf4;color:#22c55e;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px">Subscription active! You now have access to weekly monitoring.</div>` : '';
+
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stripe Auditor — Subscribe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; }
+    .container { max-width: 600px; margin: 0 auto; padding: 48px 24px; text-align: center; }
+    h1 { font-size: 28px; font-weight: 800; }
+    .subtitle { color: #64748b; margin-top: 8px; font-size: 16px; }
+    .plan { background: white; border-radius: 12px; padding: 32px; margin: 32px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .price { font-size: 48px; font-weight: 800; color: #0f172a; }
+    .price span { font-size: 20px; color: #64748b; }
+    .features { text-align: left; margin: 24px 0; display: inline-block; }
+    .features li { list-style: none; padding: 8px 0; font-size: 15px; color: #334155; }
+    .features li::before { content: "✓ "; color: #22c55e; font-weight: 700; }
+    .btn { display: inline-block; padding: 14px 48px; background: #6366f1; color: white; text-decoration: none; border: none; border-radius: 10px; font-weight: 600; font-size: 16px; cursor: pointer; }
+    .btn:hover { background: #4f46e5; }
+    .trust { color: #94a3b8; font-size: 13px; margin-top: 16px; }
+    .footer { margin-top: 48px; color: #94a3b8; font-size: 13px; }
+    ${error ? '.error { display: block; }' : ''}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stop Leaking Revenue</h1>
+    <p class="subtitle">Weekly Stripe billing audits with email alerts when new issues appear.</p>
+    ${error}
+    ${success}
+    <div class="plan">
+      <div class="price">$99 <span>/month</span></div>
+      <ul class="features">
+        <li>Weekly automated Stripe scan (5 checks)</li>
+        <li>Email alerts when leakage changes</li>
+        <li>Health score tracking over time</li>
+        <li>Fix recommendations for each issue</li>
+        <li>Cancel anytime — no lock-in</li>
+      </ul>
+      <form action="/audit/create-checkout" method="POST">
+        <button type="submit" class="btn">Subscribe with Paddle →</button>
+      </form>
+      <p class="trust">30-day money-back guarantee · Powered by Paddle</p>
+    </div>
+    <a href="/audit" style="color:#6366f1;font-size:14px">← Back to free scan</a>
+    <div class="footer">Stripe Auditor by Yashoraj</div>
+  </div>
+</body>
+</html>`);
+  });
+
+  // ── Create Paddle Checkout ────────────────────────────────────
+  // POST /audit/create-checkout — Creates Paddle transaction, redirects to payment
+  app.post('/audit/create-checkout', async (req, res) => {
+    try {
+      if (!config.paddle.apiKey || !config.paddle.priceId) {
+        return res.redirect('/audit/subscribe?error=Paddle+not+configured.+Contact+support.');
+      }
+
+      // Use Paddle Node SDK to create a checkout
+      const { Paddle: PaddleClient } = await import('@paddle/paddle-node-sdk');
+      const paddle = new PaddleClient(config.paddle.apiKey);
+
+      // Generate unique customer ID for this session
+      const customerId = `audit_customer_${Date.now()}`;
+      const customerEmail = req.body?.email || '';
+
+      // Create a transaction
+      const transaction = await paddle.transactions.create({
+        items: [{ priceId: config.paddle.priceId, quantity: 1 }],
+        customer: customerEmail ? { email: customerEmail } : undefined,
+        customData: { source: 'stripe_auditor' },
+      });
+
+      if (transaction?.checkout?.url) {
+        res.redirect(transaction.checkout.url);
+      } else {
+        // Fallback: create a payment link
+        res.redirect(`https://buy.paddle.com/product/${config.paddle.priceId}`);
+      }
+    } catch (err) {
+      console.error('❌ Paddle checkout error:', err.message);
+      // Fallback to direct Paddle checkout link
+      res.redirect(`https://buy.paddle.com/checkout?price_id=${config.paddle.priceId}&source=stripe_auditor`);
+    }
+  });
+
+  // ── Paddle Webhook (extends existing) ─────────────────────────
+  // The existing /api/paddle-webhook in server.js handles subscription
+  // lifecycle events. Stripe Auditor uses the same webhook.
+
   // ── Health endpoint ───────────────────────────────────────────
   // GET /api/audit/health Returns status
   app.get('/api/audit/health', (req, res) => {
     res.json({ status: 'running', version: '1.0.0', checks: ['retries', 'stuck-subscriptions', 'uncollected-invoices', 'failed-payments', 'recovery-potential'] });
   });
 
-  console.log('✅ Stripe Auditor routes registered (key-paste mode)');
+  console.log('✅ Stripe Auditor routes registered (key-paste + Paddle billing)');
 }
 
 
