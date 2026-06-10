@@ -83,7 +83,10 @@ export function setupAuditRoutes(app, deps) {
       const state = crypto.randomBytes(32).toString('hex');
       await deps.createOAuthState(state, merchant.id);
 
-      const redirectUri = `${BASE_URL}/audit/oauth/callback`;
+      // Use the request host to dynamically build the redirect URI
+      // This avoids BASE_URL env var mismatches
+      const origin = `${req.protocol}://${req.get('host')}`;
+      const redirectUri = `${origin}/audit/oauth/callback`;
       const authUrl =
         `https://connect.stripe.com/oauth/authorize` +
         `?response_type=code` +
@@ -134,7 +137,7 @@ export function setupAuditRoutes(app, deps) {
       await deps.updateMerchantStripeOAuth(stateRecord.merchant_id, accessToken, stripeUserId);
       console.log(`✅ Audit: Merchant ${stateRecord.merchant_id} connected Stripe (${stripeUserId})`);
 
-      // Redirect to dashboard with merchant ID
+      // Redirect to dashboard with merchant ID (relative redirect safe here)
       res.redirect(`/audit/dashboard?merchant=${stateRecord.merchant_id}`);
     } catch (err) {
       console.error('❌ Audit OAuth callback error:', err.message);
