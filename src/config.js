@@ -27,11 +27,11 @@ export const config = {
     clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
     environment: process.env.PAYPAL_ENVIRONMENT || 'sandbox',
   },
-  paddle: {
-    apiKey: process.env.PADDLE_API_KEY || '',
-    priceId: process.env.PADDLE_PRICE_ID || '',
-    webhookSecret: process.env.PADDLE_WEBHOOK_SECRET || '',
-    clientToken: process.env.PADDLE_CLIENT_TOKEN || '',
+  lemonsqueezy: {
+    apiKey: process.env.LEMONSQUEEZY_API_KEY || '',
+    storeId: process.env.LEMONSQUEEZY_STORE_ID || '',
+    variantId: process.env.LEMONSQUEEZY_VARIANT_ID || '',
+    webhookSecret: process.env.LEMONSQUEEZY_WEBHOOK_SECRET || '',
   },
   port: parseInt(process.env.PORT || '3000', 10),
   databaseUrl: process.env.DATABASE_URL || '',

@@ -136,6 +136,7 @@ async function authRequired(req, res, next) {
     if (req.path === '/app') return next();
     if (req.path === '/api/stripe-webhook') return next();
     if (req.path === '/api/paddle-webhook') return next();
+    if (req.path === '/api/lemonsqueezy-webhook') return next();
     if (req.path === '/api/stripe/oauth/callback') return next();
     if (req.path.startsWith('/audit/')) return next();
     if (req.path === '/api/audit/run' && req.method === 'POST') return next();
@@ -982,93 +983,68 @@ app.post('/api/activate-subscription', async (req, res) => {
 });
 
 /**
- * POST /api/paddle-webhook
- * Receives Paddle webhook events for subscription lifecycle.
+ * POST /api/lemonsqueezy-webhook
+ * Receives Lemon Squeezy webhook events for subscription lifecycle.
+ * Lemon Squeezy is a Merchant of Record — handles tax, compliance, payouts.
+ * Pays out to your Indian bank account in INR.
  */
-app.post('/api/paddle-webhook', async (req, res) => {
+app.post('/api/lemonsqueezy-webhook', async (req, res) => {
   try {
-    const { Paddle } = await import('@paddle/paddle-node-sdk');
-    const paddle = new Paddle(config.paddle.apiKey);
     let event = req.body;
 
     // Verify webhook signature if secret is configured
-    if (config.paddle.webhookSecret && req.headers['paddle-signature']) {
-      const isValid = await paddle.webhooks.isSignatureValid(
-        req.bodyRaw || JSON.stringify(req.body),
-        config.paddle.webhookSecret,
-        req.headers['paddle-signature']
-      );
-      if (!isValid) {
-        console.warn('⚠️  Invalid Paddle webhook signature');
+    if (config.lemonsqueezy.webhookSecret) {
+      const crypto = await import('crypto');
+      const signature = req.headers['x-signature'];
+      if (!signature) {
+        console.warn('⚠️  Missing Lemon Squeezy webhook signature');
+        return res.status(401).json({ error: 'Missing signature' });
+      }
+      const hmac = crypto.createHmac('sha256', config.lemonsqueezy.webhookSecret);
+      const digest = hmac.update(req.bodyRaw || JSON.stringify(req.body)).digest('hex');
+      if (signature !== digest) {
+        console.warn('⚠️  Invalid Lemon Squeezy webhook signature');
         return res.status(401).json({ error: 'Invalid signature' });
       }
-      event = req.body;
     }
 
-    if (!event || !event.event_type) {
-      return res.status(400).json({ error: 'Invalid webhook payload' });
-    }
+    const eventName = event.meta?.event_name || '';
+    const subData = event.data?.attributes || {};
 
-    const data = event.data || {};
-    console.log(`📬 Paddle webhook: ${event.event_type} (${data.id})`);
+    console.log(`📬 Lemon Squeezy webhook: ${eventName}`);
 
-    switch (event.event_type) {
-      case 'subscription.created':
-      case 'subscription.updated': {
-        // Determine merchant from custom data or transaction
-        let merchantId = data.custom_data?.merchant_id;
-        if (!merchantId && data.items?.[0]?.price?.id) {
-          // Try to find by API key first (Paddle.js overlay passes API_KEY as merchant_id)
-          if (data.custom_data?.api_key) {
-            const keyMerchant = await getMerchantByApiKey(data.custom_data.api_key);
-            if (keyMerchant) merchantId = keyMerchant.id;
-          }
-        }
-        if (merchantId) {
-          const merchant = await getMerchant(merchantId);
-          if (merchant) {
-            const status = data.status === 'active' ? 'active' :
-                           data.status === 'past_due' ? 'past_due' :
-                           data.status === 'canceled' ? 'canceled' :
-                           data.status === 'trialing' ? 'trialing' : data.status;
-            await updateSubscription(merchant.id, {
-              paddleCustomerId: data.customer_id || null,
-              paddleSubscriptionId: data.id,
-              status,
-              tier: 'monthly',
-            });
-            console.log(`✅ Merchant ${merchant.id}: Paddle subscribed (sub ${data.id})`);
-          } else {
-            console.warn(`⚠️  subscription.created/updated: merchant not found: ${merchantId}`);
-          }
-        }
+    switch (eventName) {
+      case 'subscription_created':
+      case 'subscription_updated': {
+        const status = subData.status;
+        const customerEmail = subData.user_email || 'unknown';
+        const subId = event.data?.id || 'unknown';
+        console.log(`✅ New subscription: ${customerEmail} — ${status} (sub ${subId})`);
         break;
       }
 
-      case 'subscription.canceled': {
-        // Find merchant by paddle_subscription_id
-        const cancelledMerchant = await getMerchantByPaddleSubscriptionId(data.id);
-        if (cancelledMerchant) {
-          await updateSubscription(cancelledMerchant.id, { status: 'canceled' });
-          console.log(`ℹ️  Merchant ${cancelledMerchant.id}: Paddle subscription cancelled`);
-        }
+      case 'subscription_cancelled': {
+        const cancelledEmail = subData.user_email || 'unknown';
+        console.log(`ℹ️  Subscription cancelled: ${cancelledEmail}`);
         break;
       }
 
-      case 'transaction.completed': {
-        // Handle one-time payments or initial subscription payments
-        const txnMerchantId = data.custom_data?.merchant_id || data.custom_data?.api_key;
-        if (txnMerchantId) {
-          console.log(`ℹ️  Merchant ${txnMerchantId}: initial Paddle transaction completed`);
-        }
+      case 'order_created': {
+        // Initial payment successful
+        const orderEmail = subData.user_email || 'unknown';
+        const amount = subData.total || 0;
+        console.log(`💰 Payment received: ${orderEmail} — $${(amount / 100).toFixed(2)}`);
         break;
       }
+
+      default:
+        console.log(`📬 Unhandled Lemon Squeezy event: ${eventName}`);
     }
 
     res.json({ received: true });
   } catch (err) {
-    console.error('❌ Paddle webhook error:', err.message);
-    res.status(400).json({ error: friendlyError(err, 'paddle-webhook') });
+    console.error('❌ Lemon Squeezy webhook error:', err.message);
+    res.status(400).json({ error: friendlyError(err, 'lemonsqueezy-webhook') });
   }
 });
 
