@@ -65,6 +65,7 @@ app.set('trust proxy', 1);  // Render sits behind a proxy — trust X-Forwarded-
 app.use(compression({ threshold: 0 }));  // gzip all responses (threshold 0 = compress everything)
 app.use(cors());
 app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Serve static files from /public directory (og-image.png, etc.)
 app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: '1h' }));
@@ -740,20 +741,10 @@ app.get('/api/stripe/oauth/callback', async (req, res) => {
     await updateMerchantStripeOAuth(stateRecord.merchant_id, accessToken, stripeUserId);
     console.log(`✅ Merchant ${stateRecord.merchant_id}: Stripe connected via OAuth (${stripeUserId})`);
 
-    // Check if this was an audit flow (state prefixed with "audit_")
-    // If so, redirect to the audit dashboard instead of the Bridge app
-    if (state && state.startsWith('audit_')) {
-      return res.redirect(`/audit/dashboard?merchant=${stateRecord.merchant_id}`);
-    }
-
     // Redirect back to the app dashboard
     res.redirect(`${BASE_URL}/app?oauth=success`);
   } catch (err) {
     console.error('❌ OAuth callback error:', err.message);
-    // For audit flows, redirect to audit page on error
-    if (state && state.startsWith('audit_')) {
-      return res.redirect('/audit?error=oauth_failed');
-    }
     res.redirect(`${BASE_URL}/app?error=oauth_failed&detail=${encodeURIComponent(err.message)}`);
   }
 });

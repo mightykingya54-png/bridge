@@ -1,30 +1,24 @@
 /**
  * Stripe Auditor — Express Routes
  * 
- * Adds audit-specific routes to the existing Bridge server.
- * Reuses the Stripe OAuth infrastructure from server.js.
- * 
- * @param {Object} app - Express app instance
- * @param {Object} deps - Dependencies from server.js
- * @param {Function} deps.createOAuthState - Store OAuth state
- * @param {Function} deps.consumeOAuthState - Verify & consume OAuth state
- * @param {Function} deps.updateMerchantStripeOAuth - Store Stripe token
- * @param {Function} deps.getMerchantByApiKey - Find merchant by API key
- * @param {Function} deps.getMerchant - Find merchant by ID
- * @param {Function} deps.createMerchant - Create new merchant
+ * Simple key-paste flow: user enters their Stripe secret key,
+ * the server runs 5 audit checks, and returns a full report.
+ * No OAuth needed — works immediately without Stripe dashboard config.
  */
 
-import { config } from '../config.js';
 import Stripe from 'stripe';
 import { runAudit, getHealthScore } from './index.js';
 import { generateReportHtml } from './report.js';
 
 export function setupAuditRoutes(app, deps) {
-  const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
   // ── Landing Page ─────────────────────────────────────────────
-  // GET /audit — Simple landing with "Connect Stripe" CTA
+  // GET /audit — Landing with key input form
   app.get('/audit', (req, res) => {
+    const errorMsg = req.query.error === 'invalid_key' 
+      ? '<div style="background:#fef2f2;color:#ef4444;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px">Invalid Stripe key. Must start with <strong>sk_live_</strong> or <strong>sk_test_</strong></div>'
+      : '';
+
     res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,156 +28,146 @@ export function setupAuditRoutes(app, deps) {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; }
-    .container { max-width: 640px; margin: 0 auto; padding: 48px 24px; text-align: center; }
-    h1 { font-size: 36px; font-weight: 800; line-height: 1.2; }
+    .container { max-width: 600px; margin: 0 auto; padding: 48px 24px; text-align: center; }
+    h1 { font-size: 32px; font-weight: 800; line-height: 1.2; }
     h1 span { color: #6366f1; }
-    .subtitle { font-size: 18px; color: #64748b; margin-top: 16px; line-height: 1.5; }
-    .benefits { text-align: left; margin: 32px 0; display: inline-block; }
-    .benefits li { list-style: none; padding: 8px 0; font-size: 15px; color: #334155; }
+    .subtitle { font-size: 16px; color: #64748b; margin-top: 12px; line-height: 1.5; }
+    .card { background: white; border-radius: 12px; padding: 32px; margin-top: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .card p { font-size: 14px; color: #64748b; margin-bottom: 16px; }
+    .benefits { text-align: left; margin: 24px 0; }
+    .benefits li { list-style: none; padding: 6px 0; font-size: 14px; color: #334155; }
     .benefits li::before { content: "✓ "; color: #22c55e; font-weight: 700; }
-    .btn { display: inline-block; padding: 16px 48px; background: #6366f1; color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 18px; margin-top: 16px; }
+    input[type="password"] { width: 100%; padding: 14px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; font-family: monospace; margin-bottom: 12px; }
+    input[type="password"]:focus { outline: none; border-color: #6366f1; }
+    .btn { display: inline-block; padding: 14px 48px; background: #6366f1; color: white; text-decoration: none; border: none; border-radius: 10px; font-weight: 600; font-size: 16px; cursor: pointer; }
     .btn:hover { background: #4f46e5; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .trust { color: #94a3b8; font-size: 13px; margin-top: 16px; }
     .footer { margin-top: 48px; color: #94a3b8; font-size: 13px; }
+    .loader { display: none; margin: 16px auto; width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Your Stripe is <span>leaking revenue</span> and you don't know it.</h1>
-    <p class="subtitle">Free scan finds failed payments, stuck subscriptions, misconfigured retries, and uncollected invoices — with exact dollar amounts.</p>
+    <p class="subtitle">Free scan checks 5 common billing gaps — disabled retries, stuck subscriptions, uncollected invoices, failed payment patterns, and recovery potential.</p>
     <ul class="benefits">
-      <li>Read-only scan — I never see your keys</li>
+      <li>Read-only — your key is used once and not stored</li>
       <li>Finds 3-10% revenue leakage on average</li>
-      <li>2 minute setup. Free. No strings.</li>
+      <li>Results in under 10 seconds. Free. No strings.</li>
     </ul>
-    <a href="/audit/connect" class="btn">Connect Stripe — Free Scan</a>
-    <p class="trust">🔒 Read-only OAuth · Your keys stay with Stripe · No data stored</p>
+
+    <div class="card">
+      <h2>Enter your Stripe secret key</h2>
+      <p>Found in <a href="https://dashboard.stripe.com/apikeys" target="_blank" style="color:#6366f1">Stripe Dashboard → API Keys</a>. Use a <strong>restricted key</strong> with read-only permissions if preferred.</p>
+      ${errorMsg}
+      <form id="auditForm" action="/audit/scan" method="POST">
+        <input type="password" name="key" placeholder="sk_live_... or sk_test_..." required autocomplete="off" spellcheck="false" />
+        <button type="submit" class="btn" id="submitBtn">Run Free Audit →</button>
+      </form>
+      <div class="loader" id="loader"></div>
+      <p class="trust">🔒 Key is sent once over HTTPS. Not stored. Not logged.</p>
+    </div>
+
     <div class="footer">Stripe Auditor by Yashoraj</div>
   </div>
+  <script>
+    document.getElementById('auditForm').addEventListener('submit', function(e) {
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').textContent = 'Scanning...';
+      document.getElementById('loader').style.display = 'block';
+    });
+  </script>
 </body>
 </html>`);
   });
 
-  // ── Start OAuth ───────────────────────────────────────────────
-  // GET /audit/connect — Redirects to Stripe for authorization
-  app.get('/audit/connect', async (req, res) => {
+  // ── Run Audit ─────────────────────────────────────────────────
+  // POST /audit/scan — Accepts Stripe key, runs audit, returns report
+  app.post('/audit/scan', async (req, res) => {
     try {
-      const clientId = config.stripe.clientId;
-      if (!clientId) {
-        return res.status(500).send('Stripe OAuth not configured. Contact the developer.');
-      }
-
-      // Import crypto inline
-      const crypto = await import('crypto');
+      const key = req.body?.key?.trim();
       
-      // Create a temporary merchant or use an existing one
-      // For anonymous users, we create a merchant record first
-      const merchant = await deps.createMerchant('Stripe Auditor User');
-      
-      // Prefix state with "audit_" so the existing OAuth callback
-      // knows to redirect to the audit dashboard instead of /app
-      const state = 'audit_' + crypto.randomBytes(32).toString('hex');
-      await deps.createOAuthState(state, merchant.id);
-
-      // Use the existing OAuth callback URI that's already registered
-      // in the Stripe dashboard to avoid needing dashboard access
-      const redirectUri = `${process.env.BASE_URL || 'https://bridge.onrender.com'}/api/stripe/oauth/callback`;
-      const authUrl =
-        `https://connect.stripe.com/oauth/authorize` +
-        `?response_type=code` +
-        `&client_id=${clientId}` +
-        `&scope=read_only` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&state=${state}`;
-
-      res.redirect(authUrl);
-    } catch (err) {
-      console.error('❌ Audit OAuth start error:', err.message);
-      res.status(500).send('Failed to start OAuth: ' + err.message);
-    }
-  });
-
-  // ── Dashboard ─────────────────────────────────────────────────
-  // GET /audit/dashboard?merchant=xxx — Shows audit results
-  app.get('/audit/dashboard', async (req, res) => {
-    try {
-      const merchantId = req.query.merchant;
-      if (!merchantId) {
-        return res.redirect('/audit');
+      if (!key || (!key.startsWith('sk_live_') && !key.startsWith('sk_test_'))) {
+        return res.redirect('/audit?error=invalid_key');
       }
 
-      const merchant = await deps.getMerchant(merchantId);
-      if (!merchant) {
-        return res.status(404).send('Merchant not found');
-      }
+      // Create a Stripe client with the provided key
+      const stripe = new Stripe(key);
 
-      if (!merchant.stripe_key) {
-        return res.redirect('/audit?error=no_stripe');
-      }
-
-      // Run the audit
-      const stripeClient = new Stripe(merchant.stripe_key);
-      const auditResult = await runAudit(stripeClient, { merchantId });
-
-      // Get business name
-      let businessName = merchant.display_name || 'Your Account';
+      // Verify the key works by fetching account info
+      let account;
       try {
-        const account = await stripeClient.accounts.retrieve();
-        businessName = account.business_profile?.name || account.settings?.dashboard?.display_name || businessName;
-      } catch (_) { /* fallback to merchant name */ }
+        account = await stripe.accounts.retrieve();
+      } catch (err) {
+        const errorMsg = err.message?.toLowerCase() || '';
+        if (errorMsg.includes('401') || errorMsg.includes('unauthorized') || errorMsg.includes('invalid')) {
+          return res.redirect('/audit?error=invalid_key');
+        }
+        return res.status(400).send(`Stripe connection failed: ${err.message}. Check your key and try again.`);
+      }
+
+      // Run all 5 audit checks
+      const auditResult = await runAudit(stripe);
+
+      // Get business name for the report
+      const businessName = account.business_profile?.name 
+        || account.settings?.dashboard?.display_name 
+        || 'Your Stripe Account';
 
       // Generate and display the report
       const html = generateReportHtml(auditResult, { businessName });
       res.send(html);
+
     } catch (err) {
-      console.error('❌ Audit dashboard error:', err.message);
-      res.status(500).send('Audit failed: ' + err.message);
+      console.error('❌ Audit scan error:', err.message);
+      res.status(500).send(`Audit failed: ${err.message}`);
     }
   });
 
-  // ── API: Run Audit ────────────────────────────────────────────
-  // POST /api/audit/run — Programmatic audit trigger
+  // ── API: Run Audit (JSON) ─────────────────────────────────────
+  // POST /api/audit/run — Accepts JSON, returns JSON
   app.post('/api/audit/run', async (req, res) => {
     try {
-      const merchant = req.merchant;
-      if (!merchant || !merchant.stripe_key) {
-        return res.status(401).json({ error: 'Stripe not connected. Go to /audit/connect first.' });
+      // Support both form-encoded and JSON
+      const key = req.body?.stripe_key || req.body?.key;
+      
+      if (!key || (!key.startsWith('sk_live_') && !key.startsWith('sk_test_'))) {
+        return res.status(400).json({ error: 'Invalid Stripe key. Must start with sk_live_ or sk_test_.' });
       }
 
-      const stripeClient = new Stripe(merchant.stripe_key);
-      const auditResult = await runAudit(stripeClient, { merchantId: merchant.id });
-
-      res.json(auditResult);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ── Health endpoint ───────────────────────────────────────────
-  // GET /api/audit/health — Quick health check
-  app.get('/api/audit/health', async (req, res) => {
-    try {
-      if (!req.merchant || !req.merchant.stripe_key) {
-        return res.json({ connected: false, healthScore: null });
+      const stripe = new Stripe(key);
+      
+      let account;
+      try {
+        account = await stripe.accounts.retrieve();
+      } catch (err) {
+        return res.status(401).json({ error: 'Invalid Stripe key: ' + err.message });
       }
 
-      const stripeClient = new Stripe(req.merchant.stripe_key);
-      const account = await stripeClient.accounts.retrieve();
-      const auditResult = await runAudit(stripeClient, { merchantId: req.merchant.id });
-      const score = getHealthScore(auditResult);
+      const auditResult = await runAudit(stripe, { merchantId: account.id });
 
       res.json({
-        connected: true,
-        accountId: account.id,
-        businessName: account.business_profile?.name || null,
-        healthScore: score,
-        issuesFound: auditResult.summary.issuesFound,
-        revenueAtRisk: auditResult.summary.totalAtRiskFormatted,
+        account: {
+          id: account.id,
+          businessName: account.business_profile?.name || null,
+        },
+        ...auditResult,
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  console.log('✅ Stripe Auditor routes registered');
+  // ── Health endpoint ───────────────────────────────────────────
+  // GET /api/audit/health Returns status
+  app.get('/api/audit/health', (req, res) => {
+    res.json({ status: 'running', version: '1.0.0', checks: ['retries', 'stuck-subscriptions', 'uncollected-invoices', 'failed-payments', 'recovery-potential'] });
+  });
+
+  console.log('✅ Stripe Auditor routes registered (key-paste mode)');
 }
+
+
