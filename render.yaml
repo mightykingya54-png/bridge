@@ -10,6 +10,6 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: BASE_URL
-        value: https://bridge.onrender.com
+        value: https://bridge-3e0f.onrender.com
       - key: STRIPE_PRICE_ID
         value: price_1TgQjYCYeLNgFTf85f95Mmsq
