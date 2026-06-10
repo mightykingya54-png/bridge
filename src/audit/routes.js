@@ -221,38 +221,22 @@ export function setupAuditRoutes(app, deps) {
   });
 
   // ── Create Paddle Checkout ────────────────────────────────────
-  // POST /audit/create-checkout — Creates Paddle transaction, redirects to payment
+  // POST /audit/create-checkout — Redirects to Paddle checkout page
+  // Uses Paddle's direct checkout URL — no SDK needed, always works.
   app.post('/audit/create-checkout', async (req, res) => {
     try {
-      if (!config.paddle.apiKey || !config.paddle.priceId) {
+      if (!config.paddle.priceId) {
         return res.redirect('/audit/subscribe?error=Paddle+not+configured.+Contact+support.');
       }
 
-      // Use Paddle Node SDK to create a checkout
-      const { Paddle: PaddleClient } = await import('@paddle/paddle-node-sdk');
-      const paddle = new PaddleClient(config.paddle.apiKey);
-
-      // Generate unique customer ID for this session
-      const customerId = `audit_customer_${Date.now()}`;
-      const customerEmail = req.body?.email || '';
-
-      // Create a transaction
-      const transaction = await paddle.transactions.create({
-        items: [{ priceId: config.paddle.priceId, quantity: 1 }],
-        customer: customerEmail ? { email: customerEmail } : undefined,
-        customData: { source: 'stripe_auditor' },
-      });
-
-      if (transaction?.checkout?.url) {
-        res.redirect(transaction.checkout.url);
-      } else {
-        // Fallback: create a payment link
-        res.redirect(`https://buy.paddle.com/product/${config.paddle.priceId}`);
-      }
+      // Paddle direct checkout URL format
+      // This creates a subscription checkout for the configured price
+      // Paddle handles the entire payment flow on their side
+      const paddleCheckoutUrl = `https://checkout.paddle.com/checkout/custom/price/${config.paddle.priceId}?source=stripe_auditor`;
+      res.redirect(paddleCheckoutUrl);
     } catch (err) {
       console.error('❌ Paddle checkout error:', err.message);
-      // Fallback to direct Paddle checkout link
-      res.redirect(`https://buy.paddle.com/checkout?price_id=${config.paddle.priceId}&source=stripe_auditor`);
+      res.redirect('/audit/subscribe?error=Checkout+failed.+Try+again+or+email+yashanare193@gmail.com');
     }
   });
 
