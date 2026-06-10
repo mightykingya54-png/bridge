@@ -80,13 +80,14 @@ export function setupAuditRoutes(app, deps) {
       // For anonymous users, we create a merchant record first
       const merchant = await deps.createMerchant('Stripe Auditor User');
       
-      const state = crypto.randomBytes(32).toString('hex');
+      // Prefix state with "audit_" so the existing OAuth callback
+      // knows to redirect to the audit dashboard instead of /app
+      const state = 'audit_' + crypto.randomBytes(32).toString('hex');
       await deps.createOAuthState(state, merchant.id);
 
-      // Use the request host to dynamically build the redirect URI
-      // This avoids BASE_URL env var mismatches
-      const origin = `${req.protocol}://${req.get('host')}`;
-      const redirectUri = `${origin}/audit/oauth/callback`;
+      // Use the existing OAuth callback URI that's already registered
+      // in the Stripe dashboard to avoid needing dashboard access
+      const redirectUri = `${process.env.BASE_URL || 'https://bridge.onrender.com'}/api/stripe/oauth/callback`;
       const authUrl =
         `https://connect.stripe.com/oauth/authorize` +
         `?response_type=code` +
@@ -99,49 +100,6 @@ export function setupAuditRoutes(app, deps) {
     } catch (err) {
       console.error('❌ Audit OAuth start error:', err.message);
       res.status(500).send('Failed to start OAuth: ' + err.message);
-    }
-  });
-
-  // ── OAuth Callback ────────────────────────────────────────────
-  // GET /audit/oauth/callback — Handles Stripe's OAuth response
-  app.get('/audit/oauth/callback', async (req, res) => {
-    try {
-      const { code, state, error } = req.query;
-
-      if (error) {
-        console.log(`ℹ️  Audit OAuth denied: ${error}`);
-        return res.redirect('/audit?error=oauth_denied');
-      }
-
-      if (!code || !state) {
-        return res.status(400).send('Missing code or state parameter');
-      }
-
-      // Verify state
-      const stateRecord = await deps.consumeOAuthState(state);
-      if (!stateRecord) {
-        return res.status(400).send('Invalid or expired OAuth state. Please try again.');
-      }
-
-      // Exchange code for access token
-      const stripe = new Stripe(config.stripe.secretKey);
-      const tokenResponse = await stripe.oauth.token({
-        grant_type: 'authorization_code',
-        code,
-      });
-
-      const accessToken = tokenResponse.access_token;
-      const stripeUserId = tokenResponse.stripe_user_id;
-
-      // Store the access token
-      await deps.updateMerchantStripeOAuth(stateRecord.merchant_id, accessToken, stripeUserId);
-      console.log(`✅ Audit: Merchant ${stateRecord.merchant_id} connected Stripe (${stripeUserId})`);
-
-      // Redirect to dashboard with merchant ID (relative redirect safe here)
-      res.redirect(`/audit/dashboard?merchant=${stateRecord.merchant_id}`);
-    } catch (err) {
-      console.error('❌ Audit OAuth callback error:', err.message);
-      res.redirect('/audit?error=oauth_failed');
     }
   });
 
