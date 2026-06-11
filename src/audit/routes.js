@@ -214,7 +214,12 @@ export function setupAuditRoutes(app, deps) {
       <p class="trust">30-day money-back guarantee · Powered by Paddle</p>
     </div>
     <a href="/audit" style="color:#6366f1;font-size:14px">← Back to free scan</a>
-    <div class="footer">Stripe Auditor by Yashoraj <!--v2--></div>
+    <div style="margin-top:24px;font-size:13px;color:#94a3b8">
+      <a href="/terms-of-service" style="color:#94a3b8">Terms</a> ·
+      <a href="/privacy-policy" style="color:#94a3b8">Privacy</a> ·
+      <a href="/refund-policy" style="color:#94a3b8">Refund Policy</a>
+    </div>
+    <div class="footer">Stripe Auditor by Yashoraj <!--v3--></div>
   </div>
 </body>
 </html>`);
@@ -232,9 +237,13 @@ export function setupAuditRoutes(app, deps) {
       const { Paddle } = await import('@paddle/paddle-node-sdk');
       const paddle = new Paddle(config.paddle.apiKey);
 
+      const baseUrl = process.env.BASE_URL || 'https://bridge-3e0f.onrender.com';
+
       const transaction = await paddle.transactions.create({
         items: [{ priceId: config.paddle.priceId, quantity: 1 }],
         customData: { source: 'stripe_auditor' },
+        successUrl: `${baseUrl}/audit/subscribe?success=true`,
+        cancelUrl: `${baseUrl}/audit/subscribe`,
       });
 
       const checkoutUrl = transaction?.checkout?.url;

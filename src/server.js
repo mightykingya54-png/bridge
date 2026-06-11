@@ -219,15 +219,22 @@ app.get('/api/cron/sync', async (req, res) => {
 // ── Routes ──────────────────────────────────────────────────────
 
 // Static legal pages (for Paddle verification) — cache for 1 hour
-function serveLegal(res, html) {
+import fs from 'fs';
+const LEGAL_DIR = path.join(process.cwd(), 'src', 'pages');
+const LEGAL_CACHE = { maxAge: '1h' };
+
+function serveLegalPage(res, filename) {
   res.set('Cache-Control', 'public, max-age=3600');
-  res.send(html);
+  const filePath = path.join(LEGAL_DIR, filename);
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send('Page not found');
+  }
 }
-app.get('/terms-of-service', (req, res) => serveLegal(res, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Terms of Service</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Terms of Service</h1><p class="meta">Last updated: June 5, 2026</p><p>By using Bridge ("the Service"), you agree to these terms.</p><h2>1. Service</h2><p>Bridge syncs PayPal transactions into Stripe Revenue Recognition. We provide the Service as-is, with no guarantee of uptime or error-free operation.</p><h2>2. Payments</h2><p>Bridge charges $49/month after a 7-day free trial. Subscriptions auto-renew until cancelled. No refunds for partial months.</p><h2>3. Data</h2><p>You provide Stripe and PayPal API credentials. Bridge accesses transaction data only to perform the sync. We do not store customer PII, card data, or addresses.</p><h2>4. Limitation of Liability</h2><p>Bridge is not responsible for inaccurate data, sync failures, or any damages arising from use of the Service.</p><h2>5. Termination</h2><p>You may cancel anytime. We may terminate accounts for violation of these terms.</p></body></html>`));
-
-app.get('/privacy-policy', (req, res) => serveLegal(res, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Privacy Policy</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Privacy Policy</h1><p class="meta">Last updated: June 5, 2026</p><h2>What We Collect</h2><p>Bridge collects your Stripe and PayPal API credentials, email address, and transaction metadata (amount, date, currency, transaction ID). We do not collect customer PII, card numbers, or bank details.</p><h2>How We Use Data</h2><p>Credentials are encrypted at rest and used solely to sync PayPal transactions into your Stripe account. Transaction data is stored for deduplication purposes only.</p><h2>Data Retention</h2><p>Transaction IDs are retained to prevent duplicate syncs. You may delete your account and all associated data at any time.</p><h2>Third Parties</h2><p>Bridge communicates with Stripe and PayPal APIs using your credentials. No data is shared with any other third party.</p><h2>Contact</h2><p>yashanare193@gmail.com</p></body></html>`));
-
-app.get('/refund-policy', (req, res) => serveLegal(res, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Bridge — Refund Policy</title><style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:0 auto;padding:40px 20px;color:#0f172a;line-height:1.6}h1{font-size:24px;margin-bottom:4px}.meta{color:#64748b;font-size:14px;margin-bottom:24px}h2{font-size:18px;margin-top:24px}p{font-size:14px;color:#334155}</style></head><body><h1>Refund Policy</h1><p class="meta">Last updated: June 5, 2026</p><h2>7-Day Free Trial</h2><p>All new accounts receive a 7-day free trial. No credit card required. If you cancel during the trial, you will not be charged.</p><h2>Paid Subscriptions</h2><p>Bridge subscriptions are billed monthly at $49. Refunds are issued only in cases of extended service outage or billing errors. Contact yashanare193@gmail.com with any issues.</p><h2>Cancellation</h2><p>You may cancel anytime from the Bridge dashboard. Access continues until the end of the current billing period. No partial refunds.</p></body></html>`));
+app.get('/terms-of-service', (req, res) => serveLegalPage(res, 'terms.html'));
+app.get('/privacy-policy', (req, res) => serveLegalPage(res, 'privacy.html'));
+app.get('/refund-policy', (req, res) => serveLegalPage(res, 'refund.html'));
 
 /**
  * GET /
