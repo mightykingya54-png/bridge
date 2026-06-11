@@ -221,16 +221,31 @@ export function setupAuditRoutes(app, deps) {
   });
 
   // ── Create Paddle Checkout ────────────────────────────────────
-  // POST /audit/create-checkout — Redirects to Paddle checkout page
+  // POST /audit/create-checkout — Creates a Paddle transaction via SDK, redirects to checkout
   app.post('/audit/create-checkout', async (req, res) => {
     try {
-      if (!config.paddle.priceId) {
+      if (!config.paddle.apiKey || !config.paddle.priceId) {
         return res.redirect('/audit/subscribe?error=Payment+not+configured.+Contact+support.');
       }
 
-      // Paddle direct checkout URL
-      const paddleCheckoutUrl = `https://checkout.paddle.com/checkout/custom/price/${config.paddle.priceId}?source=stripe_auditor`;
-      res.redirect(paddleCheckoutUrl);
+      // Use Paddle Node SDK to create a transaction with a checkout link
+      const { Paddle } = await import('@paddle/paddle-node-sdk');
+      const paddle = new Paddle(config.paddle.apiKey);
+
+      const transaction = await paddle.transactions.create({
+        items: [{ priceId: config.paddle.priceId, quantity: 1 }],
+        customData: { source: 'stripe_auditor' },
+      });
+
+      const checkoutUrl = transaction?.checkout?.url;
+      if (checkoutUrl) {
+        res.redirect(checkoutUrl);
+      } else if (transaction?.id) {
+        // Fallback: redirect to checkout with transaction ID
+        res.redirect(`https://checkout.paddle.com/checkout/${transaction.id}`);
+      } else {
+        res.redirect('/audit/subscribe?error=Checkout+link+not+generated.+Try+again.');
+      }
     } catch (err) {
       console.error('❌ Paddle checkout error:', err.message);
       res.redirect('/audit/subscribe?error=Checkout+failed.+Email+yashanare193@gmail.com+for+help');
