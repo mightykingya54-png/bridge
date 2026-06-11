@@ -211,7 +211,7 @@ export function setupAuditRoutes(app, deps) {
       <form action="/audit/create-checkout" method="POST">
         <button type="submit" class="btn">Subscribe — $99/mo →</button>
       </form>
-      <p class="trust">30-day money-back guarantee · Powered by Lemon Squeezy</p>
+      <p class="trust">30-day money-back guarantee · Powered by Paddle</p>
     </div>
     <a href="/audit" style="color:#6366f1;font-size:14px">← Back to free scan</a>
     <div class="footer">Stripe Auditor by Yashoraj</div>
@@ -220,62 +220,24 @@ export function setupAuditRoutes(app, deps) {
 </html>`);
   });
 
-  // ── Create Lemon Squeezy Checkout ─────────────────────────────
-  // POST /audit/create-checkout — Generates a Lemon Squeezy checkout link
+  // ── Create Paddle Checkout ────────────────────────────────────
+  // POST /audit/create-checkout — Redirects to Paddle checkout page
   app.post('/audit/create-checkout', async (req, res) => {
     try {
-      if (!config.lemonsqueezy.apiKey || !config.lemonsqueezy.storeId || !config.lemonsqueezy.variantId) {
+      if (!config.paddle.priceId) {
         return res.redirect('/audit/subscribe?error=Payment+not+configured.+Contact+support.');
       }
 
-      // Generate a Lemon Squeezy checkout link
-      const checkoutUrl = `https://api.lemonsqueezy.com/v1/checkouts`;
-      const response = await fetch(checkoutUrl, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.lemonsqueezy.apiKey}`,
-        },
-        body: JSON.stringify({
-          data: {
-            type: 'checkouts',
-            attributes: {
-              checkout_data: {
-                custom: { source: 'stripe_auditor' },
-              },
-            },
-            relationships: {
-              store: {
-                data: { type: 'stores', id: config.lemonsqueezy.storeId },
-              },
-              variant: {
-                data: { type: 'variants', id: config.lemonsqueezy.variantId },
-              },
-            },
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error('❌ Lemon Squeezy API error:', response.status, errText);
-        return res.redirect('/audit/subscribe?error=Checkout+failed.+Try+again+or+email+yashanare193@gmail.com');
-      }
-
-      const data = await response.json();
-      const checkoutUrlLink = data?.data?.attributes?.url;
-
-      if (checkoutUrlLink) {
-        res.redirect(checkoutUrlLink);
-      } else {
-        res.redirect('/audit/subscribe?error=Checkout+link+not+generated.+Try+again.');
-      }
+      // Paddle direct checkout URL
+      const paddleCheckoutUrl = `https://checkout.paddle.com/checkout/custom/price/${config.paddle.priceId}?source=stripe_auditor`;
+      res.redirect(paddleCheckoutUrl);
     } catch (err) {
-      console.error('❌ Lemon Squeezy checkout error:', err.message);
-      res.redirect('/audit/subscribe?error=Checkout+error.+Email+yashanare193@gmail.com+for+help');
+      console.error('❌ Paddle checkout error:', err.message);
+      res.redirect('/audit/subscribe?error=Checkout+failed.+Email+yashanare193@gmail.com+for+help');
     }
   });
+
+  // ── Paddle Webhook (uses existing /api/paddle-webhook in server.js) ──
 
   // ── Health endpoint ───────────────────────────────────────────
   // GET /api/audit/health Returns status

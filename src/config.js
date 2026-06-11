@@ -33,6 +33,12 @@ export const config = {
     variantId: process.env.LEMONSQUEEZY_VARIANT_ID || '',
     webhookSecret: process.env.LEMONSQUEEZY_WEBHOOK_SECRET || '',
   },
+  paddle: {
+    apiKey: process.env.PADDLE_API_KEY || '',
+    priceId: process.env.PADDLE_PRICE_ID || '',
+    clientToken: process.env.PADDLE_CLIENT_TOKEN || '',
+    webhookSecret: process.env.PADDLE_WEBHOOK_SECRET || '',
+  },
   port: parseInt(process.env.PORT || '3000', 10),
   databaseUrl: process.env.DATABASE_URL || '',
   /** Master API key for the server operator. Optional — used for admin/debug. */

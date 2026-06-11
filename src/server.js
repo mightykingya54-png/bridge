@@ -1048,6 +1048,45 @@ app.post('/api/lemonsqueezy-webhook', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/paddle-webhook
+ * Receives Paddle webhook events for subscription lifecycle.
+ */
+app.post('/api/paddle-webhook', async (req, res) => {
+  try {
+    const event = req.body;
+    if (!event || !event.event_type) {
+      return res.status(400).json({ error: 'Invalid webhook payload' });
+    }
+    const data = event.data || {};
+    console.log(`📬 Paddle webhook: ${event.event_type} (${data.id})`);
+
+    switch (event.event_type) {
+      case 'subscription.created':
+      case 'subscription.updated': {
+        const status = data.status || 'unknown';
+        const customerId = data.customer_id || data.custom_data?.customer_email || 'unknown';
+        console.log(`✅ Paddle subscription: ${customerId} — ${status} (sub ${data.id})`);
+        break;
+      }
+      case 'subscription.canceled': {
+        console.log(`ℹ️  Paddle subscription cancelled: ${data.id}`);
+        break;
+      }
+      case 'transaction.completed': {
+        const amount = data.details?.line_items?.[0]?.total || 0;
+        console.log(`💰 Paddle payment completed: $${(amount / 100).toFixed(2)}`);
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('❌ Paddle webhook error:', err.message);
+    res.status(400).json({ error: friendlyError(err, 'paddle-webhook') });
+  }
+});
+
 // ── Admin endpoints (requires MASTER_API_KEY) ───────────────────
 /**
  * GET /api/admin/merchants
