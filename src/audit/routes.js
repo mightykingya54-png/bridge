@@ -214,7 +214,7 @@ export function setupAuditRoutes(app, deps) {
       <p class="trust">30-day money-back guarantee · Powered by Paddle</p>
     </div>
     <a href="/audit" style="color:#6366f1;font-size:14px">← Back to free scan</a>
-    <div class="footer">Stripe Auditor by Yashoraj</div>
+    <div class="footer">Stripe Auditor by Yashoraj <!--v2--></div>
   </div>
 </body>
 </html>`);
