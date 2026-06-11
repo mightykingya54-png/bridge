@@ -13,3 +13,13 @@ services:
         value: https://bridge-3e0f.onrender.com
       - key: STRIPE_PRICE_ID
         value: price_1TgQjYCYeLNgFTf85f95Mmsq
+
+      # Paddle — for subscription payments
+      - key: PADDLE_API_KEY
+        value: apikey_01ktcfkrb8wbfj96v56mvd2ec7
+      - key: PADDLE_PRICE_ID
+        value: pri_01ktw00tex0bxcdhxp2gkjm201
+      - key: PADDLE_CLIENT_TOKEN
+        value: live_23d04184a86441bb236d839faed
+      - key: PADDLE_WEBHOOK_SECRET
+        value: ""
