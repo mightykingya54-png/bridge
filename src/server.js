@@ -1154,16 +1154,9 @@ app.get('/api/admin/stats', async (req, res) => {
   }
 });
 
-// ── Stripe Auditor Routes ──────────────────────────────────────
-import { setupAuditRoutes } from './audit/routes.js';
-setupAuditRoutes(app, {
-  createOAuthState,
-  consumeOAuthState,
-  updateMerchantStripeOAuth,
-  getMerchantByApiKey,
-  getMerchant,
-  createMerchant,
-});
+// ── Stripe Auditor Routes (disabled — will be deployed separately) ──
+// import { setupAuditRoutes } from './audit/routes.js';
+// setupAuditRoutes(app, {...});
 
 // ── Serve Web UI (standalone setup page) ─────────────────────────
 // BASE_URL is set via env var (Render provides the URL after first deploy).
