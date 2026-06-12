@@ -241,22 +241,7 @@ app.get('/refund-policy', (req, res) => serveLegalPage(res, 'refund.html'));
  * Root landing page.
  */
 app.get('/', (req, res) => {
-  res.json({
-    app: 'Bridge',
-    version: '0.2.0',
-    status: 'running',
-    endpoints: {
-      register: 'POST /api/register',
-      configure: 'POST /api/configure',
-      status: '/api/status',
-      sync: 'POST /api/sync',
-      refund: 'POST /api/refund',
-      syncedIds: '/api/synced-ids',
-      refunds: '/api/refunds',
-    },
-    auth: 'Send Authorization: Bearer <api_key> header. Get your API key from POST /api/register.',
-    docs: 'https://github.com/mightykingya54-png/bridge',
-  });
+  res.redirect('/audit/');
 });
 
 /**
