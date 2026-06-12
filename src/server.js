@@ -238,10 +238,10 @@ app.get('/refund-policy', (req, res) => serveLegalPage(res, 'refund.html'));
 
 /**
  * GET /
- * Root landing page.
+ * Root landing page — redirects to Bridge dashboard.
  */
 app.get('/', (req, res) => {
-  res.redirect('/audit/');
+  res.redirect('/app');
 });
 
 /**
