@@ -765,7 +765,7 @@ export function setupWebUI(app, _BASE_URL) {
   </div>
 </div>
 
-<div class="footer">🌉 Bridge · <a href="${BASE_URL}">Home</a></div>
+<div class="footer">🌉 Bridge · <a href="${BASE_URL}">Home</a> · <a href="/terms-of-service">Terms</a> · <a href="/privacy-policy">Privacy</a> · <a href="/refund-policy">Refunds</a></div>
 </div>
 
 <script>
